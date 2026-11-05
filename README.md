@@ -29,7 +29,7 @@ The Angular dev server proxies `/api` requests to NestJS on port 3000. Sign-in r
 
 ## Deploy to Render
 
-The root `render.yaml` deploys one Node web service: NestJS serves the built Angular application and `/api` from the same origin. This keeps the HTTP-only session cookie same-site and avoids a separate CORS setup. The health check is `GET /api/health`.
+The root `render.yaml` deploys one Node web service: NestJS serves the built Angular application and `/api` from the same origin. This keeps the HTTP-only session cookie same-site and avoids a separate CORS setup. The build explicitly installs development dependencies because Render sets `NODE_ENV=production`; after building, it prunes those dependencies from the runtime install. The health check is `GET /api/health`.
 
 1. Push this repository to a Git provider supported by Render.
 2. Create a MongoDB database in MongoDB Atlas. In Atlas, create a database user and allow network access from Render (use Render's outbound IP ranges if available for your service; otherwise use Atlas's `0.0.0.0/0` access rule with a strong unique database password).

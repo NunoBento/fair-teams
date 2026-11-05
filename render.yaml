@@ -3,7 +3,7 @@ services:
     name: fiveaside-api
     runtime: node
     plan: free
-    buildCommand: npm ci && npm run build
+    buildCommand: npm ci --include=dev && npm run build && npm prune --omit=dev
     startCommand: npm run start:prod --workspace api
     healthCheckPath: /api/health
     envVars:
