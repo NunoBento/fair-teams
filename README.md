@@ -31,6 +31,8 @@ The Angular dev server proxies `/api` requests to NestJS on port 3000. Sign-in r
 
 The root `render.yaml` deploys one Node web service: NestJS serves the built Angular application and `/api` from the same origin. This keeps the HTTP-only session cookie same-site and avoids a separate CORS setup. The build explicitly installs development dependencies because Render sets `NODE_ENV=production`; after building, it prunes those dependencies from the runtime install. The health check is `GET /api/health`.
 
+If configuring the Render service manually instead of using the Blueprint, use `npm ci --include=dev && npm run build && npm prune --omit=dev` as the build command and `npm start` as the start command.
+
 1. Push this repository to a Git provider supported by Render.
 2. Create a MongoDB database in MongoDB Atlas. In Atlas, create a database user and allow network access from Render (use Render's outbound IP ranges if available for your service; otherwise use Atlas's `0.0.0.0/0` access rule with a strong unique database password).
 3. In Render, choose **New → Blueprint**, connect the repository, and deploy the `render.yaml` blueprint. It generates `JWT_SECRET` and prompts for `MONGODB_URI`, `ADMIN_USERNAME`, and `ADMIN_PASSWORD`.
