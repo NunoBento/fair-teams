@@ -11,7 +11,6 @@ type PlayerStats = Record<Skill, number | null>;
 interface Player {
   id: string;
   name: string;
-  position: string;
   ratingCount: number;
   stats: PlayerStats;
 }
@@ -149,15 +148,14 @@ interface MemberAccount {
               </div>
               <div class="table-wrap">
                 <table>
-                  <thead><tr>@if (isAdmin) { <th>TEAM</th> }<th>PLAYER</th><th>ROLE</th><th>DRIBBLE</th><th>SPEED</th><th>SHOOTING</th><th>STAMINA</th><th>PASSING</th><th>DEFENCE</th><th>REVIEWS</th><th></th></tr></thead>
+                  <thead><tr>@if (isAdmin) { <th>TEAM</th> }<th>PLAYER</th><th>DRIBBLE</th><th>SPEED</th><th>SHOOTING</th><th>STAMINA</th><th>PASSING</th><th>DEFENCE</th><th>REVIEWS</th><th></th></tr></thead>
                   <tbody>
                     @for (player of filteredPlayers; track player.id; let i = $index) {
                       <tr>
                         @if (isAdmin) { <td><input class="team-select-checkbox" type="checkbox" [checked]="isPlayerSelected(player)" [disabled]="!player.ratingCount" [attr.aria-label]="'Select ' + player.name + ' for teams'" (change)="togglePlayer(player, $event)" /></td> }
                         <td><div class="player-name-cell"><span class="player-avatar avatar-{{ i % 6 }}">{{ initials(player.name) }}</span><strong>{{ player.name }}</strong></div></td>
-                        <td><span class="role-pill">{{ player.position }}</span></td>
                         @for (skill of skills; track skill) {
-                          <td><span class="rating-value" [class.rating-muted]="player.stats[skill] === null">{{ formatScore(player.stats[skill]) }}</span></td>
+                          <td><span class="rating-value" [class.rating-indicator]="player.stats[skill] !== null" [class.rating-muted]="player.stats[skill] === null" [style.--rating-hue]="(player.stats[skill] ?? 0) * 12">{{ formatScore(player.stats[skill]) }}</span></td>
                         }
                         <td><span class="review-count">{{ player.ratingCount }} <span>reviews</span></span></td>
                         <td class="row-actions">
@@ -166,7 +164,7 @@ interface MemberAccount {
                         </td>
                       </tr>
                     } @empty {
-                      <tr><td class="empty-row" [attr.colspan]="isAdmin ? 11 : 10">No players match your search.</td></tr>
+                      <tr><td class="empty-row" [attr.colspan]="isAdmin ? 10 : 9">No players match your search.</td></tr>
                     }
                   </tbody>
                 </table>
@@ -224,7 +222,6 @@ interface MemberAccount {
           <button class="modal-close" aria-label="Close" (click)="closeModal()">×</button>
           <div class="section-kicker">GROW THE ROSTER</div><h2 id="modal-title">Add a player</h2><p>Bring another player into your Thursday league.</p>
           <label class="form-field">Player name<input [(ngModel)]="newPlayerName" placeholder="e.g. Alex Morgan" /></label>
-          <label class="form-field">Preferred role<select [(ngModel)]="newPlayerPosition"><option>Ala</option><option>Fixo</option><option>Pivot</option><option>Goalkeeper</option><option>Any</option></select></label>
           <button class="build-button modal-submit" (click)="addPlayer()" [disabled]="!newPlayerName.trim()">Add to roster <span>→</span></button>
         </section>
       </div>
@@ -325,7 +322,6 @@ export class App implements OnInit {
   deletingPlayer = false;
   creatingMember = false;
   newPlayerName = '';
-  newPlayerPosition = 'Ala';
   newUsername = '';
   newMemberPlayerId = '';
   generatedCredentials: { username: string; password: string } | null = null;
@@ -454,7 +450,6 @@ export class App implements OnInit {
   openAddPlayer(): void {
     if (!this.isAdmin) return;
     this.newPlayerName = '';
-    this.newPlayerPosition = 'Ala';
     this.modal = 'player';
   }
 
@@ -513,7 +508,7 @@ export class App implements OnInit {
     const name = this.newPlayerName.trim();
     if (!name) return;
     try {
-      const saved = await firstValueFrom(this.http.post<Player>('/api/players', { name, position: this.newPlayerPosition }));
+      const saved = await firstValueFrom(this.http.post<Player>('/api/players', { name }));
       this.players = [...this.players, saved];
       this.closeModal();
       this.changeDetector.detectChanges();
