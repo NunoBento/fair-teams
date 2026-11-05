@@ -1,0 +1,15 @@
+{
+  "name": "fiveaside",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "apps/api",
+    "apps/web"
+  ],
+  "scripts": {
+    "start:api": "npm run start:dev --workspace api",
+    "start:web": "npm run start --workspace web",
+    "build": "npm run build --workspace api && npm run build --workspace web",
+    "test:api": "npm run test --workspace api -- --runInBand"
+  }
+}
