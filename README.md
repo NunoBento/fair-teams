@@ -16,6 +16,8 @@ Sign in as the administrator to add players and create member logins. Each membe
 
 Administrator sessions can create and remove players and create or remove member accounts. Any signed-in league member can select rated players, generate balanced teams, and swap players between teams. The API enforces admin-only account and roster management server-side. Sessions use an HTTP-only, same-site cookie; use HTTPS in production.
 
+The **Live match** page is available to every signed-in member. Start a game from the teams in the team builder (Team A as Brancos, Team B as Pretos), add goals by selecting the scorer, and finish the game to include it in match history and all-time player goal totals. Goals are saved as they are added.
+
 ## Run locally
 
 1. Copy `apps/api/.env.example` to `apps/api/.env` and set the required variables.
@@ -60,3 +62,7 @@ The team builder accepts 8 or 10 rated players. It checks every possible split a
 - `POST /api/players/:id/ratings` — authenticated; `{ "stats": { "dribbling": 8, "speed": 7, "shooting": 6, "stamina": 8, "passing": 7, "defending": 5 } }`
 - `DELETE /api/players/:id` — administrator only; permanently removes a player and their ratings. Remove the linked member account first if one exists.
 - `POST /api/teams/generate` — signed-in members; `{ "playerIds": ["<8 or 10 MongoDB player ids>"] }`
+- `GET /api/matches/active`, `GET /api/matches/recent`, and `GET /api/matches/goal-leaders` — signed-in members
+- `POST /api/matches` — signed-in members; start a live game with `{ "whites": ["<4 or 5 player ids>"], "blacks": ["<4 or 5 player ids>"] }`
+- `POST /api/matches/:id/goals` — signed-in members; `{ "team": "whites", "playerId": "<player id>" }` (or `"blacks"`); saved immediately
+- `POST /api/matches/:id/finish` — signed-in members; finish a live game and include it in match history and goal totals

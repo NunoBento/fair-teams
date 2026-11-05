@@ -22,6 +22,36 @@ interface Team {
 	average: number;
 }
 
+type MatchTeam = 'whites' | 'blacks';
+
+interface MatchPlayer {
+	playerId: string;
+	playerName: string;
+}
+
+interface MatchGoal {
+	id: string;
+	team: MatchTeam;
+	playerId: string;
+	playerName: string;
+	scoredAt: string;
+}
+
+interface GameMatch {
+	id: string;
+	gameDate: string;
+	status: 'live' | 'completed';
+	teams: Record<MatchTeam, { players: MatchPlayer[] }>;
+	goals: MatchGoal[];
+	finishedAt?: string;
+}
+
+interface GoalLeader {
+	playerId: string;
+	playerName: string;
+	goals: number;
+}
+
 interface SessionUser {
 	id: string;
 	username: string;
@@ -68,9 +98,10 @@ interface MemberAccount {
         </a>
         <div class="side-label">Workspace</div>
         <nav class="navigation" aria-label="Main navigation">
-          <button class="nav-item active"><span class="nav-icon">◫</span> Dashboard</button>
-          <button class="nav-item" (click)="scrollToPlayers()"><span class="nav-icon">◎</span> Players <span class="nav-count">{{ players.length }}</span></button>
-          <button class="nav-item" (click)="scrollToTeamBuilder()"><span class="nav-icon">⌘</span> Team builder</button>
+          <button class="nav-item" [class.active]="currentPage === 'dashboard'" (click)="showDashboard()"><span class="nav-icon">◫</span> Dashboard</button>
+          <button class="nav-item" [class.active]="currentPage === 'match'" (click)="showMatchPage()"><span class="nav-icon">⚽</span> Live match</button>
+          <button class="nav-item" (click)="goToPlayers()"><span class="nav-icon">◎</span> Players <span class="nav-count">{{ players.length }}</span></button>
+          <button class="nav-item" (click)="goToTeamBuilder()"><span class="nav-icon">⌘</span> Team builder</button>
           @if (isAdmin) {
             <button class="nav-item" (click)="openUserManagement()"><span class="nav-icon">♙</span> Members <span class="nav-count">{{ memberAccounts.length }}</span></button>
           }
@@ -91,7 +122,7 @@ interface MemberAccount {
 
       <main class="main-content">
         <header class="topbar">
-          <div class="breadcrumb">Thursday league <span>/</span> <strong>Overview</strong></div>
+          <div class="breadcrumb">Thursday league <span>/</span> <strong>{{ currentPage === 'match' ? 'Live match' : 'Overview' }}</strong></div>
           <div class="top-actions">
             <div class="week-chip"><span class="live-dot"></span> Weekly match <span class="chip-divider"></span> Thu · 21:00</div>
             <span class="top-avatar">{{ initials(sessionUser.username) }}</span>
@@ -103,6 +134,7 @@ interface MemberAccount {
             <div class="error-banner" role="alert">{{ errorMessage }}</div>
           }
 
+          @if (currentPage === 'dashboard') {
           <section class="welcome-row">
             <div>
               <div class="eyebrow"><span class="eyebrow-line"></span> YOUR LEAGUE AT A GLANCE</div>
@@ -193,6 +225,20 @@ interface MemberAccount {
                         <strong>{{ team.average | number:'1.1-1' }}</strong><small>avg / 10</small>
                       </div>
                     </div>
+                    <svg class="radar-chart team-radar-chart" viewBox="0 0 220 205" role="img" [attr.aria-label]="'Team ' + (i === 0 ? 'A' : 'B') + ' skill ratings radar chart'">
+                      <polygon class="radar-grid" [attr.points]="radarGridPoints(10)" />
+                      <polygon class="radar-grid radar-grid-inner" [attr.points]="radarGridPoints(5)" />
+                      @for (skill of skills; track skill; let axis = $index) {
+                        <line class="radar-axis" x1="110" y1="103" [attr.x2]="radarAxisPoint(axis).x" [attr.y2]="radarAxisPoint(axis).y" />
+                      }
+                      <polygon class="radar-data" [class.radar-data-team-a]="i === 0" [class.radar-data-team-b]="i === 1" [attr.points]="radarPoints(teamRadarStats(team))" />
+                      <text class="radar-label" x="110" y="13" text-anchor="middle">Dribbling</text>
+                      <text class="radar-label" x="185" y="57" text-anchor="start">Speed</text>
+                      <text class="radar-label" x="185" y="157" text-anchor="start">Shooting</text>
+                      <text class="radar-label" x="110" y="201" text-anchor="middle">Stamina</text>
+                      <text class="radar-label" x="35" y="157" text-anchor="end">Passing</text>
+                      <text class="radar-label" x="35" y="57" text-anchor="end">Defending</text>
+                    </svg>
                     <div class="team-skill-averages" aria-label="Team skill averages">
                       @for (skill of skills; track skill) {
                         <div
@@ -238,6 +284,128 @@ interface MemberAccount {
           </section>
 
           <footer class="page-footer"><span>fiveaside<span class="brand-period">.</span> <span>Built for the love of the game.</span></span><span>Thursday league <i>·</i> Weekly at 21:00</span></footer>
+          } @else {
+          <section class="match-page">
+            <header class="match-page-heading">
+              <div>
+                <div class="section-kicker">THURSDAY LEAGUE · LIVE SCOREKEEPER</div>
+                <h1>Brancos <span>vs</span> Pretos</h1>
+                <p>Track every goal and choose who scored. Goals save automatically.</p>
+              </div>
+              @if (activeMatch) { <span class="match-live-badge"><i></i> LIVE</span> }
+            </header>
+            @if (matchNotice) { <div class="match-notice" role="status">{{ matchNotice }}</div> }
+            @if (matchError) { <div class="error-banner" role="alert">{{ matchError }}</div> }
+            @if (matchLoading) {
+              <div class="panel match-empty-state" role="status">Loading match data…</div>
+            } @else if (activeMatch) {
+              <section class="match-scoreboard" aria-label="Live match score">
+                <div class="score-team score-whites">
+                  <span class="score-team-name">BRANCOS</span>
+                  <strong>{{ matchScore(activeMatch, 'whites') }}</strong>
+                </div>
+                <div class="score-status">
+                  <span class="score-vs">VS</span>
+                  <strong
+                    [class.white-leading]="matchScore(activeMatch, 'whites') > matchScore(activeMatch, 'blacks')"
+                    [class.black-leading]="matchScore(activeMatch, 'blacks') > matchScore(activeMatch, 'whites')"
+                  >{{ matchLead(activeMatch) }}</strong>
+                  <small>{{ formatGameDate(activeMatch.gameDate) }}</small>
+                </div>
+                <div class="score-team score-blacks">
+                  <span class="score-team-name">PRETOS</span>
+                  <strong>{{ matchScore(activeMatch, 'blacks') }}</strong>
+                </div>
+              </section>
+              <section class="match-rosters" aria-label="Match teams and scorers">
+                <article class="scoring-panel scoring-whites">
+                  <header><span class="score-team-dot"></span><h2>Brancos</h2><small>{{ activeMatch.teams.whites.players.length }} players</small></header>
+                  <label class="form-field">Who scored?
+                    <select name="whiteScorer" [(ngModel)]="selectedWhiteScorerId">
+                      @for (player of activeMatch.teams.whites.players; track player.playerId) { <option [value]="player.playerId">{{ player.playerName }}</option> }
+                    </select>
+                  </label>
+                  <button class="goal-button goal-white-button" type="button" (click)="addMatchGoal('whites')" [disabled]="matchSaving || !activeMatch.teams.whites.players.length">＋ Add Brancos goal</button>
+                  <div class="roster-list">
+                    @for (player of activeMatch.teams.whites.players; track player.playerId) {
+                      <div class="roster-row"><span>{{ player.playerName }}</span><strong>{{ playerGoalCount(activeMatch, player.playerId) }}</strong></div>
+                    }
+                  </div>
+                </article>
+                <article class="scoring-panel scoring-blacks">
+                  <header><span class="score-team-dot"></span><h2>Pretos</h2><small>{{ activeMatch.teams.blacks.players.length }} players</small></header>
+                  <label class="form-field">Who scored?
+                    <select name="blackScorer" [(ngModel)]="selectedBlackScorerId">
+                      @for (player of activeMatch.teams.blacks.players; track player.playerId) { <option [value]="player.playerId">{{ player.playerName }}</option> }
+                    </select>
+                  </label>
+                  <button class="goal-button goal-black-button" type="button" (click)="addMatchGoal('blacks')" [disabled]="matchSaving || !activeMatch.teams.blacks.players.length">＋ Add Pretos goal</button>
+                  <div class="roster-list">
+                    @for (player of activeMatch.teams.blacks.players; track player.playerId) {
+                      <div class="roster-row"><span>{{ player.playerName }}</span><strong>{{ playerGoalCount(activeMatch, player.playerId) }}</strong></div>
+                    }
+                  </div>
+                </article>
+              </section>
+              <section class="panel match-goals-panel">
+                <div class="panel-heading match-goals-heading"><div><div class="section-kicker">MATCH TIMELINE</div><h2>Goals <span class="heading-count">{{ activeMatch.goals.length }}</span></h2></div>
+                  <button class="finish-match-button" type="button" (click)="finishMatch()" [disabled]="matchSaving">{{ matchSaving ? 'Saving…' : 'Finish game' }}</button>
+                </div>
+                <div class="match-goal-list">
+                  @for (goal of activeMatch.goals; track goal.id; let i = $index) {
+                    <div class="match-goal-row" [class.goal-row-black]="goal.team === 'blacks'">
+                      <span class="goal-number">{{ i + 1 }}</span><span class="goal-team-tag">{{ goal.team === 'whites' ? 'BRANCOS' : 'PRETOS' }}</span>
+                      <strong>{{ goal.playerName }}</strong><time>{{ formatGoalTime(goal.scoredAt) }}</time>
+                    </div>
+                  } @empty {
+                    <p class="match-empty-state">No goals yet. Add the first goal above.</p>
+                  }
+                </div>
+              </section>
+            } @else {
+              <section class="panel start-match-panel">
+                <div class="start-match-icon">⚽</div>
+                <div class="section-kicker">READY WHEN YOU ARE</div>
+                <h2>Start a new game</h2>
+                @if (teams.length === 2) {
+                  <p>Team A will play as Brancos and Team B as Pretos. You can change players in the team builder before starting.</p>
+                  <div class="start-team-preview">
+                    <div><strong>Brancos</strong><span>{{ teamPlayerNames(teams[0]) }}</span></div>
+                    <div><strong>Pretos</strong><span>{{ teamPlayerNames(teams[1]) }}</span></div>
+                  </div>
+                  <button class="build-button start-match-button" type="button" (click)="startMatch()" [disabled]="matchSaving">
+                    {{ matchSaving ? 'Starting…' : 'Start live game' }} <span>→</span>
+                  </button>
+                } @else {
+                  <p>Build balanced teams first, then come back here to start keeping score.</p>
+                  <button class="build-button start-match-button" type="button" (click)="goToTeamBuilder()">Go to team builder <span>→</span></button>
+                }
+              </section>
+            }
+            <section class="match-stats-grid">
+              <article class="panel match-stats-panel">
+                <div class="section-kicker">ALL-TIME STATS</div><h2>Goals by player</h2>
+                <div class="leader-list">
+                  @for (leader of goalLeaders; track leader.playerId; let i = $index) {
+                    <div class="leader-row"><span class="leader-rank">{{ i + 1 }}</span><strong>{{ leader.playerName }}</strong><span>{{ leader.goals }} {{ leader.goals === 1 ? 'goal' : 'goals' }}</span></div>
+                  } @empty { <p class="match-muted">Player goal totals will appear here.</p> }
+                </div>
+              </article>
+              <article class="panel match-stats-panel">
+                <div class="section-kicker">RECENT RESULTS</div><h2>Match history</h2>
+                <div class="history-list">
+                  @for (match of recentMatches; track match.id) {
+                    <div class="history-row">
+                      <time>{{ formatGameDate(match.gameDate) }}</time>
+                      <strong class="history-score"><span>{{ matchScore(match, 'whites') }}</span><small>–</small><span>{{ matchScore(match, 'blacks') }}</span></strong>
+                      <span class="history-winner">{{ matchLead(match) }}</span>
+                    </div>
+                  } @empty { <p class="match-muted">Finished games will be saved here.</p> }
+                </div>
+              </article>
+            </section>
+          </section>
+          }
         </div>
       </main>
     </div>
@@ -263,6 +431,23 @@ interface MemberAccount {
             <div class="error-banner modal-error" role="alert">{{ ratingLoadError }}</div>
             <button class="cancel-button rating-retry" (click)="openRating(selectedPlayer)">Try again</button>
           }
+          <svg class="radar-chart rating-radar-chart" viewBox="0 0 220 205" role="img" aria-label="Player skill ratings radar chart">
+            <polygon class="radar-grid" [attr.points]="radarGridPoints(10)" />
+            <polygon class="radar-grid radar-grid-inner" [attr.points]="radarGridPoints(5)" />
+            @for (skill of skills; track skill; let axis = $index) {
+              <line class="radar-axis" x1="110" y1="103" [attr.x2]="radarAxisPoint(axis).x" [attr.y2]="radarAxisPoint(axis).y" />
+            }
+            <polygon class="radar-data radar-data-rating" [attr.points]="radarPoints(ratingDraft)" />
+            @for (skill of skills; track skill; let axis = $index) {
+              <circle class="radar-point" [attr.cx]="radarVertex(ratingDraft, axis).x" [attr.cy]="radarVertex(ratingDraft, axis).y" r="3" />
+            }
+            <text class="radar-label" x="110" y="13" text-anchor="middle">Dribbling</text>
+            <text class="radar-label" x="185" y="57" text-anchor="start">Speed</text>
+            <text class="radar-label" x="185" y="157" text-anchor="start">Shooting</text>
+            <text class="radar-label" x="110" y="201" text-anchor="middle">Stamina</text>
+            <text class="radar-label" x="35" y="157" text-anchor="end">Passing</text>
+            <text class="radar-label" x="35" y="57" text-anchor="end">Defending</text>
+          </svg>
           <div class="rating-fields">@for (skill of skills; track skill) { <label class="rating-field"><span>{{ skillLabel(skill) }}</span><input type="range" min="1" max="10" step="1" [(ngModel)]="ratingDraft[skill]" [disabled]="ratingLoading || !!ratingLoadError" /><strong>{{ ratingDraft[skill] }}</strong></label> }</div>
           <button class="build-button modal-submit" (click)="saveRating()" [disabled]="ratingLoading || !!ratingLoadError">{{ ratingLoading ? 'Loading rating…' : 'Submit rating' }} <span>→</span></button>
         </section>
@@ -365,6 +550,260 @@ export class App implements OnInit {
 	swapPlayerId: string | null = null;
 	teamsMessageCopied = false;
 	teamsMessageError = '';
+	currentPage: 'dashboard' | 'match' = 'dashboard';
+	activeMatch: GameMatch | null = null;
+	recentMatches: GameMatch[] = [];
+	goalLeaders: GoalLeader[] = [];
+	matchLoading = false;
+	matchSaving = false;
+	matchError = '';
+	matchNotice = '';
+	selectedWhiteScorerId = '';
+	selectedBlackScorerId = '';
+	private matchRefreshTimer: ReturnType<typeof setInterval> | null = null;
+
+	radarAxisPoint(index: number): { x: number; y: number } {
+		const angle = (index * 60 - 90) * Math.PI / 180;
+		return {
+			x: Number((110 + Math.cos(angle) * 65).toFixed(1)),
+			y: Number((103 + Math.sin(angle) * 65).toFixed(1)),
+		};
+	}
+
+	radarVertex(stats: Readonly<Record<Skill, number | null>>, index: number): { x: number; y: number } {
+		const angle = (index * 60 - 90) * Math.PI / 180;
+		const radius = 65 * (stats[SKILLS[index]] ?? 0) / 10;
+		return {
+			x: Number((110 + Math.cos(angle) * radius).toFixed(1)),
+			y: Number((103 + Math.sin(angle) * radius).toFixed(1)),
+		};
+	}
+
+	radarGridPoints(score: 5 | 10): string {
+		const radius = 65 * score / 10;
+		return SKILLS.map((_, index) => {
+			const angle = (index * 60 - 90) * Math.PI / 180;
+			return `${(110 + Math.cos(angle) * radius).toFixed(1)},${(103 + Math.sin(angle) * radius).toFixed(1)}`;
+		}).join(' ');
+	}
+
+	radarPoints(stats: Readonly<Record<Skill, number | null>>): string {
+		return SKILLS.map((_, index) => {
+			const point = this.radarVertex(stats, index);
+			return `${point.x},${point.y}`;
+		}).join(' ');
+	}
+
+	teamRadarStats(team: Team): Record<Skill, number | null> {
+		return {
+			dribbling: this.teamSkillAverage(team, 'dribbling'),
+			speed: this.teamSkillAverage(team, 'speed'),
+			shooting: this.teamSkillAverage(team, 'shooting'),
+			stamina: this.teamSkillAverage(team, 'stamina'),
+			passing: this.teamSkillAverage(team, 'passing'),
+			defending: this.teamSkillAverage(team, 'defending'),
+		};
+	}
+
+	showDashboard(): void {
+		this.currentPage = 'dashboard';
+		this.clearMatchRefresh();
+	}
+
+	goToTeamBuilder(): void {
+		this.showDashboard();
+		setTimeout(() => this.scrollToTeamBuilder());
+	}
+
+	goToPlayers(): void {
+		this.showDashboard();
+		setTimeout(() => this.scrollToPlayers());
+	}
+
+	showMatchPage(): void {
+		this.currentPage = 'match';
+		this.matchNotice = '';
+		this.clearMatchRefresh();
+		void this.loadMatchPage();
+		this.matchRefreshTimer = setInterval(() => {
+			void this.refreshActiveMatch();
+		}, 5000);
+	}
+
+	private clearMatchRefresh(): void {
+		if (this.matchRefreshTimer !== null) {
+			clearInterval(this.matchRefreshTimer);
+			this.matchRefreshTimer = null;
+		}
+	}
+
+	private async loadMatchPage(): Promise<void> {
+		this.matchLoading = true;
+		this.matchError = '';
+		try {
+			const [active, recent, leaders] = await Promise.all([
+				firstValueFrom(this.http.get<GameMatch | null>('/api/matches/active')),
+				firstValueFrom(this.http.get<GameMatch[]>('/api/matches/recent')),
+				firstValueFrom(this.http.get<GoalLeader[]>('/api/matches/goal-leaders')),
+			]);
+			this.activeMatch = active;
+			this.recentMatches = recent;
+			this.goalLeaders = leaders;
+			this.syncSelectedScorers(active);
+		} catch (error) {
+			this.matchError = this.matchRequestError(error);
+		} finally {
+			this.matchLoading = false;
+			this.changeDetector.detectChanges();
+		}
+	}
+
+	private async refreshActiveMatch(): Promise<void> {
+		if (this.currentPage !== 'match' || this.matchSaving || this.matchLoading) return;
+		try {
+			const previousMatchId = this.activeMatch?.id ?? null;
+			const active = await firstValueFrom(this.http.get<GameMatch | null>('/api/matches/active'));
+			this.activeMatch = active;
+			this.syncSelectedScorers(active);
+			if (previousMatchId && !active) await this.refreshMatchRecords();
+			this.changeDetector.detectChanges();
+		} catch (error) {
+			this.matchError = this.matchRequestError(error);
+			this.changeDetector.detectChanges();
+		}
+	}
+
+	private syncSelectedScorers(match: GameMatch | null): void {
+		if (!match) {
+			this.selectedWhiteScorerId = '';
+			this.selectedBlackScorerId = '';
+			return;
+		}
+		if (!match.teams.whites.players.some((player) => player.playerId === this.selectedWhiteScorerId)) {
+			this.selectedWhiteScorerId = match.teams.whites.players[0]?.playerId ?? '';
+		}
+		if (!match.teams.blacks.players.some((player) => player.playerId === this.selectedBlackScorerId)) {
+			this.selectedBlackScorerId = match.teams.blacks.players[0]?.playerId ?? '';
+		}
+	}
+
+	private async refreshMatchRecords(): Promise<void> {
+		const [recent, leaders] = await Promise.all([
+			firstValueFrom(this.http.get<GameMatch[]>('/api/matches/recent')),
+			firstValueFrom(this.http.get<GoalLeader[]>('/api/matches/goal-leaders')),
+		]);
+		this.recentMatches = recent;
+		this.goalLeaders = leaders;
+	}
+
+	async startMatch(): Promise<void> {
+		if (this.matchSaving || this.activeMatch || this.teams.length !== 2) return;
+		this.matchSaving = true;
+		this.matchError = '';
+		this.matchNotice = '';
+		try {
+			this.activeMatch = await firstValueFrom(this.http.post<GameMatch>('/api/matches', {
+				whites: this.teams[0].players.map((player) => player.id),
+				blacks: this.teams[1].players.map((player) => player.id),
+			}));
+			this.syncSelectedScorers(this.activeMatch);
+		} catch (error) {
+			this.matchError = this.matchRequestError(error);
+		} finally {
+			this.matchSaving = false;
+			this.changeDetector.detectChanges();
+		}
+	}
+
+	async addMatchGoal(team: MatchTeam): Promise<void> {
+		if (!this.activeMatch || this.matchSaving) return;
+		const playerId = team === 'whites' ? this.selectedWhiteScorerId : this.selectedBlackScorerId;
+		if (!playerId) {
+			this.matchError = 'Select the player who scored before adding the goal.';
+			return;
+		}
+		this.matchSaving = true;
+		this.matchError = '';
+		try {
+			this.activeMatch = await firstValueFrom(this.http.post<GameMatch>(
+				`/api/matches/${this.activeMatch.id}/goals`,
+				{ team, playerId },
+			));
+		} catch (error) {
+			this.matchError = this.matchRequestError(error);
+		} finally {
+			this.matchSaving = false;
+			this.changeDetector.detectChanges();
+		}
+	}
+
+	async finishMatch(): Promise<void> {
+		if (!this.activeMatch || this.matchSaving) return;
+		if (!confirm('Finish this game? The final score and goal scorers will be saved to match history.')) return;
+		this.matchSaving = true;
+		this.matchError = '';
+		try {
+			await firstValueFrom(this.http.post<GameMatch>(`/api/matches/${this.activeMatch.id}/finish`, {}));
+			this.activeMatch = null;
+			this.selectedWhiteScorerId = '';
+			this.selectedBlackScorerId = '';
+			this.matchNotice = 'Game finished and saved. Player goal totals have been updated.';
+			await this.refreshMatchRecords();
+		} catch (error) {
+			this.matchError = this.matchRequestError(error);
+		} finally {
+			this.matchSaving = false;
+			this.changeDetector.detectChanges();
+		}
+	}
+
+	matchScore(match: GameMatch, team: MatchTeam): number {
+		return match.goals.filter((goal) => goal.team === team).length;
+	}
+
+	matchLead(match: GameMatch): string {
+		const whiteScore = this.matchScore(match, 'whites');
+		const blackScore = this.matchScore(match, 'blacks');
+		if (whiteScore === blackScore) return 'EMPATE';
+		return whiteScore > blackScore ? 'BRANCOS À FRENTE' : 'PRETOS À FRENTE';
+	}
+
+	playerGoalCount(match: GameMatch, playerId: string): number {
+		return match.goals.filter((goal) => goal.playerId === playerId).length;
+	}
+
+	teamPlayerNames(team: Team): string {
+		return team.players.map((player) => player.name).join(' · ');
+	}
+
+	formatGameDate(value: string): string {
+		return new Date(value).toLocaleDateString(undefined, {
+			day: 'numeric',
+			month: 'short',
+			year: 'numeric',
+		});
+	}
+
+	formatGoalTime(value: string): string {
+		return new Date(value).toLocaleTimeString(undefined, {
+			hour: '2-digit',
+			minute: '2-digit',
+		});
+	}
+
+	private matchRequestError(error: unknown): string {
+		if (error instanceof HttpErrorResponse && error.status === 401) {
+			this.showApiError(error);
+			return 'Your session expired. Please sign in again.';
+		}
+		if (error instanceof HttpErrorResponse && error.status === 409) {
+			return error.error?.message ?? 'There is already a live game, or this game has finished.';
+		}
+		if (error instanceof HttpErrorResponse && error.status === 400) {
+			return error.error?.message ?? 'The selected teams or scorer are not valid.';
+		}
+		return 'Could not save the game. Check your connection and try again.';
+	}
 
 	ngOnInit(): void {
 		this.http.get<SessionUser>('/api/auth/me').pipe(
@@ -562,10 +1001,12 @@ export class App implements OnInit {
 	async logout(): Promise<void> {
 		try {
 			await firstValueFrom(this.http.post<void>('/api/auth/logout', {}));
+			this.clearMatchRefresh();
 			this.sessionUser = null;
 			this.players = [];
 			this.memberAccounts = [];
 			this.teams = [];
+			this.activeMatch = null;
 			this.modal = null;
 			this.changeDetector.detectChanges();
 		} catch (error) {
@@ -821,10 +1262,12 @@ export class App implements OnInit {
 
 	private showApiError(error: unknown): void {
 		if (error instanceof HttpErrorResponse && error.status === 401) {
+			this.clearMatchRefresh();
 			this.sessionUser = null;
 			this.players = [];
 			this.memberAccounts = [];
 			this.teams = [];
+			this.activeMatch = null;
 			this.modal = null;
 			this.loginError = 'Your session expired. Please sign in again.';
 			return;
