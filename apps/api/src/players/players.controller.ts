@@ -33,6 +33,14 @@ export class PlayersController {
     return this.playersService.create(dto);
   }
 
+  @Get(':id/my-rating')
+  findMyRating(
+    @Param('id') id: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.playersService.findMyRating(id, user);
+  }
+
   @Post(':id/ratings')
   addRating(
     @Param('id') id: string,

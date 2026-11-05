@@ -117,6 +117,58 @@ describe('PlayersService', () => {
     expect(player.save).toHaveBeenCalledTimes(2);
   });
 
+  it('returns only the signed-in evaluator’s rating for a player', async () => {
+    const ownStats = {
+      dribbling: 5,
+      speed: 6,
+      shooting: 7,
+      stamina: 8,
+      passing: 9,
+      defending: 4,
+    };
+    player.ratings = [
+      {
+        evaluatorName: 'jamie',
+        evaluatorUserId: 'member-id',
+        stats: ownStats,
+        createdAt: new Date(),
+      },
+      {
+        evaluatorName: 'other',
+        evaluatorUserId: 'other-member-id',
+        stats: { ...ownStats, speed: 1 },
+        createdAt: new Date(),
+      },
+    ];
+    findById.mockReturnValue({
+      exec: jest.fn().mockResolvedValue(player),
+    });
+
+    await expect(
+      service.findMyRating('player-id', {
+        sub: 'member-id',
+        username: 'jamie',
+        role: 'member',
+        playerId: 'another-player-id',
+      }),
+    ).resolves.toEqual(ownStats);
+  });
+
+  it('returns null when the signed-in evaluator has not rated the player', async () => {
+    findById.mockReturnValue({
+      exec: jest.fn().mockResolvedValue(player),
+    });
+
+    await expect(
+      service.findMyRating('player-id', {
+        sub: 'member-id',
+        username: 'jamie',
+        role: 'member',
+        playerId: 'another-player-id',
+      }),
+    ).resolves.toBeNull();
+  });
+
   it('prevents a member from rating their own linked player profile', async () => {
     findById.mockReturnValue({
       exec: jest.fn().mockResolvedValue(player),

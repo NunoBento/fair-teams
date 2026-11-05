@@ -14,7 +14,7 @@ Copy `apps/api/.env.example` to `apps/api/.env`, then set a unique `JWT_SECRET` 
 
 Sign in as the administrator to add players and create member logins. Each member login is linked to one player profile. The API generates a random temporary password and shows it once, so share it with that member when the account is created. Passwords are stored as bcrypt hashes. Members can sign in, see the roster, and rate other players; they cannot rate their own linked profile. Submitting another rating updates that member's existing rating for the same player.
 
-Administrator sessions can create and remove players, create and remove member accounts, and generate balanced teams. API routes enforce these roles server-side. Sessions use an HTTP-only, same-site cookie; use HTTPS in production.
+Administrator sessions can create and remove players and create or remove member accounts. Any signed-in league member can select rated players, generate balanced teams, and swap players between teams. The API enforces admin-only account and roster management server-side. Sessions use an HTTP-only, same-site cookie; use HTTPS in production.
 
 ## Run locally
 
@@ -59,4 +59,4 @@ The team builder accepts 8 or 10 rated players. It checks every possible split a
 - `POST /api/players` — administrator only; `{ "name": "Jamie Chen", "position": "Ala" }`
 - `POST /api/players/:id/ratings` — authenticated; `{ "stats": { "dribbling": 8, "speed": 7, "shooting": 6, "stamina": 8, "passing": 7, "defending": 5 } }`
 - `DELETE /api/players/:id` — administrator only; permanently removes a player and their ratings. Remove the linked member account first if one exists.
-- `POST /api/teams/generate` — administrator only; `{ "playerIds": ["<8 or 10 MongoDB player ids>"] }`
+- `POST /api/teams/generate` — signed-in members; `{ "playerIds": ["<8 or 10 MongoDB player ids>"] }`

@@ -1,5 +1,5 @@
-import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { DecimalPipe } from '@angular/common';
+import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectorRef, Component, OnInit, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { catchError, firstValueFrom, of } from 'rxjs';
@@ -7,38 +7,39 @@ import { catchError, firstValueFrom, of } from 'rxjs';
 const SKILLS = ['dribbling', 'speed', 'shooting', 'stamina', 'passing', 'defending'] as const;
 type Skill = (typeof SKILLS)[number];
 type PlayerStats = Record<Skill, number | null>;
+type RatingStats = Record<Skill, number>;
 
 interface Player {
-  id: string;
-  name: string;
-  ratingCount: number;
-  stats: PlayerStats;
+	id: string;
+	name: string;
+	ratingCount: number;
+	stats: PlayerStats;
 }
 
 interface Team {
-  name: string;
-  players: Player[];
-  average: number;
+	name: string;
+	players: Player[];
+	average: number;
 }
 
 interface SessionUser {
-  id: string;
-  username: string;
-  role: 'admin' | 'member';
-  playerId?: string;
+	id: string;
+	username: string;
+	role: 'admin' | 'member';
+	playerId?: string;
 }
 
 interface MemberAccount {
-  id: string;
-  username: string;
-  role: 'member';
-  playerId?: string;
+	id: string;
+	username: string;
+	role: 'member';
+	playerId?: string;
 }
 
 @Component({
-  selector: 'app-root',
-  imports: [DecimalPipe, FormsModule],
-  template: `
+	selector: 'app-root',
+	imports: [DecimalPipe, FormsModule],
+	template: `
     @if (!sessionUser) {
       <main class="login-page">
         <a class="brand login-brand" href="#" aria-label="Fiveaside home">
@@ -69,9 +70,9 @@ interface MemberAccount {
         <nav class="navigation" aria-label="Main navigation">
           <button class="nav-item active"><span class="nav-icon">◫</span> Dashboard</button>
           <button class="nav-item" (click)="scrollToPlayers()"><span class="nav-icon">◎</span> Players <span class="nav-count">{{ players.length }}</span></button>
+          <button class="nav-item" (click)="scrollToTeamBuilder()"><span class="nav-icon">⌘</span> Team builder</button>
           @if (isAdmin) {
             <button class="nav-item" (click)="openUserManagement()"><span class="nav-icon">♙</span> Members <span class="nav-count">{{ memberAccounts.length }}</span></button>
-            <button class="nav-item" (click)="scrollToTeamBuilder()"><span class="nav-icon">⌘</span> Team builder</button>
           }
         </nav>
         <div class="sidebar-bottom">
@@ -92,8 +93,7 @@ interface MemberAccount {
         <header class="topbar">
           <div class="breadcrumb">Thursday league <span>/</span> <strong>Overview</strong></div>
           <div class="top-actions">
-            <div class="week-chip"><span class="live-dot"></span> Week 24 <span class="chip-divider"></span> Nov 12</div>
-            <button class="icon-button" aria-label="Notifications">♧<span class="notification-dot"></span></button>
+            <div class="week-chip"><span class="live-dot"></span> Weekly match <span class="chip-divider"></span> Thu · 21:00</div>
             <span class="top-avatar">{{ initials(sessionUser.username) }}</span>
           </div>
         </header>
@@ -106,37 +106,21 @@ interface MemberAccount {
           <section class="welcome-row">
             <div>
               <div class="eyebrow"><span class="eyebrow-line"></span> YOUR LEAGUE AT A GLANCE</div>
-              <h1>Good game starts<br />with a <span>fair one.</span></h1>
-              <p class="welcome-copy">Know your players. Build balanced teams. Make every match count.</p>
-            </div>
-            <div class="match-card">
-              <div class="match-card-top"><span class="upcoming-label"><span class="live-dot"></span> NEXT MATCH</span><span class="match-menu">···</span></div>
-              <div class="match-date">THU <strong>12</strong> NOV</div>
-              <div class="match-opponents"><span class="team-badge badge-lime">A</span><span class="versus">VS</span><span class="team-badge badge-purple">B</span><span class="match-names">Team A <span>vs</span> Team B</span></div>
-              <div class="match-location"><span>⌖</span> Riverside Sports Hall <span class="location-dot">·</span> 7:30 PM</div>
+              <h1>Know your players.<br /><span>Build fair teams.</span></h1>
+              <p class="welcome-copy">Rate the squad and get ready for Thursday futsal.</p>
             </div>
           </section>
 
           <section class="stats-row" aria-label="League overview">
             <article class="stat-card">
               <div class="stat-top"><span class="stat-label">PLAYERS</span><span class="stat-icon green-icon">♙</span></div>
-              <div class="stat-value">{{ players.length }}<span class="stat-total"> / 16</span></div>
-              <div class="stat-foot"><span class="tiny-bars"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span><span>Roster spots filled</span></div>
+              <div class="stat-value">{{ players.length }}</div>
+              <div class="stat-foot"><span>In your league roster</span></div>
             </article>
             <article class="stat-card">
-              <div class="stat-top"><span class="stat-label">RATINGS COLLECTED</span><span class="stat-icon blue-icon">◈</span></div>
-              <div class="stat-value">{{ totalRatings }}<span class="stat-change">+12%</span></div>
-              <div class="stat-foot"><span class="stat-foot-dot blue-dot"></span><span>Peer reviews this season</span></div>
-            </article>
-            <article class="stat-card">
-              <div class="stat-top"><span class="stat-label">MATCHES PLAYED</span><span class="stat-icon orange-icon">◷</span></div>
-              <div class="stat-value">08<span class="stat-total"> / 12</span></div>
-              <div class="stat-foot"><span class="progress-track"><span class="progress-value"></span></span><span>Season in progress</span></div>
-            </article>
-            <article class="stat-card highlight-stat">
-              <div class="stat-top"><span class="stat-label">TEAM BALANCE</span><span class="stat-icon lime-icon">✳</span></div>
-              <div class="stat-value">94<span class="stat-unit">%</span><span class="balance-tag">GREAT</span></div>
-              <div class="stat-foot"><span class="stat-foot-dot lime-dot"></span><span>Last matchup fairness score</span></div>
+              <div class="stat-top"><span class="stat-label">PLAYER RATINGS</span><span class="stat-icon blue-icon">◈</span></div>
+              <div class="stat-value">{{ totalRatings }}</div>
+              <div class="stat-foot"><span>Ratings submitted by league members</span></div>
             </article>
           </section>
 
@@ -148,11 +132,11 @@ interface MemberAccount {
               </div>
               <div class="table-wrap">
                 <table>
-                  <thead><tr>@if (isAdmin) { <th>TEAM</th> }<th>PLAYER</th><th>DRIBBLE</th><th>SPEED</th><th>SHOOTING</th><th>STAMINA</th><th>PASSING</th><th>DEFENCE</th><th>REVIEWS</th><th></th></tr></thead>
+                  <thead><tr><th>SELECT</th><th>PLAYER</th><th>DRIBBLE</th><th>SPEED</th><th>SHOOTING</th><th>STAMINA</th><th>PASSING</th><th>DEFENCE</th><th>REVIEWS</th><th></th></tr></thead>
                   <tbody>
                     @for (player of filteredPlayers; track player.id; let i = $index) {
                       <tr>
-                        @if (isAdmin) { <td><input class="team-select-checkbox" type="checkbox" [checked]="isPlayerSelected(player)" [disabled]="!player.ratingCount" [attr.aria-label]="'Select ' + player.name + ' for teams'" (change)="togglePlayer(player, $event)" /></td> }
+                        <td><input class="team-select-checkbox" type="checkbox" [checked]="isPlayerSelected(player)" [disabled]="!player.ratingCount" [attr.aria-label]="'Select ' + player.name + ' for teams'" (change)="togglePlayer(player, $event)" /></td>
                         <td><div class="player-name-cell"><span class="player-avatar avatar-{{ i % 6 }}">{{ initials(player.name) }}</span><strong>{{ player.name }}</strong></div></td>
                         @for (skill of skills; track skill) {
                           <td><span class="rating-value" [class.rating-indicator]="player.stats[skill] !== null" [class.rating-muted]="player.stats[skill] === null" [style.--rating-hue]="(player.stats[skill] ?? 0) * 12">{{ formatScore(player.stats[skill]) }}</span></td>
@@ -164,16 +148,16 @@ interface MemberAccount {
                         </td>
                       </tr>
                     } @empty {
-                      <tr><td class="empty-row" [attr.colspan]="isAdmin ? 10 : 9">No players match your search.</td></tr>
+                      <tr><td class="empty-row" colspan="10">No players match your search.</td></tr>
                     }
                   </tbody>
                 </table>
               </div>
-              <div class="table-footer"><span>Showing <strong>{{ filteredPlayers.length }}</strong> of <strong>{{ players.length }}</strong> players @if (isAdmin) { <i>·</i> <strong>{{ selectedPlayerIds.length }}</strong> selected }</span><button (click)="scrollToPlayers()">View all players <span>→</span></button></div>
+              <div class="table-footer"><span>Showing <strong>{{ filteredPlayers.length }}</strong> of <strong>{{ players.length }}</strong> players <i>·</i> <strong>{{ selectedPlayerIds.length }}</strong> selected for teams</span></div>
             </article>
 
             <aside class="panel skills-panel">
-              <div class="skills-heading"><div><div class="section-kicker">LEAGUE SNAPSHOT</div><h2>Skill averages</h2></div><button class="more-button" aria-label="More options">···</button></div>
+              <div class="skills-heading"><div><div class="section-kicker">LEAGUE SNAPSHOT</div><h2>Skill averages</h2></div></div>
               <p class="panel-subtitle">Median ratings across all players</p>
               <div class="skill-list">
                 @for (skill of skills; track skill) {
@@ -183,35 +167,77 @@ interface MemberAccount {
                   </div>
                 }
               </div>
-              <div class="insight-card"><span class="insight-spark">✳</span><div><strong>Defence is your edge</strong><p>Your league's strongest skill. Keep it up on match day.</p></div></div>
             </aside>
           </section>
 
-          @if (isAdmin) {
           <section class="panel builder-panel" id="team-builder">
-            <div class="builder-copy">
-              <div class="builder-icon">✳</div>
-              <div><div class="section-kicker">MATCH DAY, MADE FAIR</div><h2>Build your balanced teams</h2><p>Pick 10 players and let player ratings do the heavy lifting.</p></div>
-            </div>
-            <div class="builder-controls">
-              <label class="select-wrap"><span>PLAYERS</span><select [(ngModel)]="selectedCount"><option [ngValue]="10">10 players · 5v5</option><option [ngValue]="8">8 players · 4v4</option></select></label>
-              <button class="build-button" (click)="generateTeams()">✨ <span>Build teams</span></button>
+            <div class="builder-header">
+              <div class="builder-copy">
+                <div class="builder-icon">✳</div>
+                <div><div class="section-kicker">MATCH DAY, MADE FAIR</div><h2>Build your teams</h2><p>Choose your players and create two balanced sides.</p></div>
+              </div>
+              <div class="builder-controls">
+                <label class="select-wrap"><span>FORMAT</span><select [(ngModel)]="selectedCount"><option [ngValue]="10">10 players · 5v5</option><option [ngValue]="8">8 players · 4v4</option></select></label>
+                <button class="build-button" (click)="generateTeams()">✨ <span>{{ teams.length ? 'Regenerate teams' : 'Build teams' }}</span></button>
+              </div>
             </div>
             @if (teams.length) {
+              <div class="swap-hint"><span>↔</span> Want to make a change? Select one player from each team to swap them.</div>
               <div class="teams-result">
                 @for (team of teams; track team.name; let i = $index) {
-                  <div class="team-result-card">
-                    <div class="result-team-heading"><span class="team-badge" [class.badge-lime]="i === 0" [class.badge-purple]="i === 1">{{ i === 0 ? 'A' : 'B' }}</span><strong>Team {{ i === 0 ? 'A' : 'B' }}</strong><span class="team-average">{{ team.average | number:'1.1-1' }} avg</span></div>
-                    <div class="team-player-list">@for (player of team.players; track player.id) { <span>{{ player.name }}</span> }</div>
+                  <div class="team-result-card" [class.team-a-card]="i === 0" [class.team-b-card]="i === 1">
+                    <div class="result-team-heading">
+                      <span class="team-badge" [class.badge-lime]="i === 0" [class.badge-purple]="i === 1">{{ i === 0 ? 'A' : 'B' }}</span>
+                      <div class="result-team-title"><strong>Team {{ i === 0 ? 'A' : 'B' }}</strong><small>{{ team.players.length }} players</small></div>
+                      <div class="team-average" [style.--rating-hue]="team.average * 12">
+                        <strong>{{ team.average | number:'1.1-1' }}</strong><small>avg / 10</small>
+                      </div>
+                    </div>
+                    <div class="team-skill-averages" aria-label="Team skill averages">
+                      @for (skill of skills; track skill) {
+                        <div
+                          class="team-skill-average"
+                          [style.--rating-hue]="(teamSkillAverage(team, skill) ?? 0) * 12"
+                        >
+                          <span>{{ skillLabel(skill) }}</span>
+                          <strong>{{ formatScore(teamSkillAverage(team, skill)) }}</strong>
+                        </div>
+                      }
+                    </div>
+                    <div class="team-player-list">
+                      @for (player of team.players; track player.id) {
+                        <button
+                          type="button"
+                          class="team-player"
+                          [class.swap-selected]="swapPlayerId === player.id"
+                          [attr.aria-label]="swapPlayerId === player.id ? player.name + ' selected for swap' : swapPlayerId ? 'Swap ' + player.name + ' with ' + swapPlayerName() : 'Select ' + player.name + ' to swap'"
+                          (click)="selectTeamPlayerForSwap(team, player)"
+                        >
+                          <span class="team-player-avatar">{{ initials(player.name) }}</span>
+                          <span class="team-player-name">{{ player.name }}</span>
+                          <span class="swap-action">{{ swapPlayerId === player.id ? 'Selected' : swapPlayerId ? 'Swap' : '↔' }}</span>
+                        </button>
+                      }
+                    </div>
                   </div>
                 }
-                <div class="balance-result"><span class="balance-result-icon">✓</span><strong>Teams balanced</strong><span>{{ balanceGap | number:'1.1-1' }} point skill gap</span></div>
-              </div>
+                <div class="balance-result"><span class="balance-result-icon">⚖</span><div><strong>Average skill gap</strong><span>{{ balanceGap | number:'1.1-1' }} points between teams</span></div></div>
+                </div>
+                <section class="whatsapp-share" aria-labelledby="whatsapp-title">
+                  <div class="whatsapp-share-header">
+                    <div><div class="section-kicker">READY TO SHARE</div><h3 id="whatsapp-title">Match message</h3></div>
+                    <button class="copy-teams-button" type="button" (click)="copyTeamsMessage()">
+                      {{ teamsMessageCopied ? 'Copied!' : 'Copy message' }}
+                    </button>
+                  </div>
+                  <pre class="whatsapp-message">{{ teamsWhatsAppMessage() }}</pre>
+                  @if (teamsMessageError) { <p class="whatsapp-copy-error" role="alert">{{ teamsMessageError }}</p> }
+                  @else if (teamsMessageCopied) { <p class="whatsapp-copy-success" role="status">Message copied. Paste it into your WhatsApp group.</p> }
+                </section>
             }
           </section>
-          }
 
-          <footer class="page-footer"><span>fiveaside<span class="brand-period">.</span> <span>Built for the love of the game.</span></span><span>Thursday league <i>·</i> Season 2026</span></footer>
+          <footer class="page-footer"><span>fiveaside<span class="brand-period">.</span> <span>Built for the love of the game.</span></span><span>Thursday league <i>·</i> Weekly at 21:00</span></footer>
         </div>
       </main>
     </div>
@@ -232,8 +258,13 @@ interface MemberAccount {
         <section class="modal-card rating-modal" role="dialog" aria-modal="true" aria-labelledby="rating-title" (click)="$event.stopPropagation()">
           <button class="modal-close" aria-label="Close" (click)="closeModal()">×</button>
           <div class="section-kicker">PEER REVIEW</div><h2 id="rating-title">Rate {{ selectedPlayer.name }}</h2><p>Give an honest 1–10 rating for each skill.</p>
-          <div class="rating-fields">@for (skill of skills; track skill) { <label class="rating-field"><span>{{ skillLabel(skill) }}</span><input type="range" min="1" max="10" step="1" [(ngModel)]="ratingDraft[skill]" /><strong>{{ ratingDraft[skill] }}</strong></label> }</div>
-          <button class="build-button modal-submit" (click)="saveRating()">Submit rating <span>→</span></button>
+          @if (ratingLoading) { <p class="rating-load-status" role="status">Loading your previous rating…</p> }
+          @if (ratingLoadError) {
+            <div class="error-banner modal-error" role="alert">{{ ratingLoadError }}</div>
+            <button class="cancel-button rating-retry" (click)="openRating(selectedPlayer)">Try again</button>
+          }
+          <div class="rating-fields">@for (skill of skills; track skill) { <label class="rating-field"><span>{{ skillLabel(skill) }}</span><input type="range" min="1" max="10" step="1" [(ngModel)]="ratingDraft[skill]" [disabled]="ratingLoading || !!ratingLoadError" /><strong>{{ ratingDraft[skill] }}</strong></label> }</div>
+          <button class="build-button modal-submit" (click)="saveRating()" [disabled]="ratingLoading || !!ratingLoadError">{{ ratingLoading ? 'Loading rating…' : 'Submit rating' }} <span>→</span></button>
         </section>
       </div>
     }
@@ -302,364 +333,502 @@ interface MemberAccount {
   `,
 })
 export class App implements OnInit {
-  private readonly http = inject(HttpClient);
-  private readonly changeDetector = inject(ChangeDetectorRef);
-  readonly skills = SKILLS;
-  sessionUser: SessionUser | null = null;
-  loginUsername = '';
-  loginPassword = '';
-  loginError = '';
-  loginBusy = false;
-  players: Player[] = [];
-  memberAccounts: MemberAccount[] = [];
-  searchTerm = '';
-  selectedCount = 10;
-  selectedPlayerIds: string[] = [];
-  errorMessage = '';
-  userAdminError = '';
-  modal: 'player' | 'rating' | 'delete' | 'users' | null = null;
-  selectedPlayer: Player | null = null;
-  deletingPlayer = false;
-  creatingMember = false;
-  newPlayerName = '';
-  newUsername = '';
-  newMemberPlayerId = '';
-  generatedCredentials: { username: string; password: string } | null = null;
-  ratingDraft: Record<Skill, number> = { dribbling: 7, speed: 7, shooting: 7, stamina: 7, passing: 7, defending: 7 };
-  teams: Team[] = [];
-  balanceGap = 0;
+	private readonly http = inject(HttpClient);
+	private readonly changeDetector = inject(ChangeDetectorRef);
+	readonly skills = SKILLS;
+	sessionUser: SessionUser | null = null;
+	loginUsername = '';
+	loginPassword = '';
+	loginError = '';
+	loginBusy = false;
+	players: Player[] = [];
+	memberAccounts: MemberAccount[] = [];
+	searchTerm = '';
+	selectedCount = 10;
+	selectedPlayerIds: string[] = [];
+	errorMessage = '';
+	userAdminError = '';
+	modal: 'player' | 'rating' | 'delete' | 'users' | null = null;
+	selectedPlayer: Player | null = null;
+	deletingPlayer = false;
+	creatingMember = false;
+	newPlayerName = '';
+	newUsername = '';
+	newMemberPlayerId = '';
+	generatedCredentials: { username: string; password: string } | null = null;
+	ratingDraft: RatingStats = { dribbling: 5, speed: 5, shooting: 5, stamina: 5, passing: 5, defending: 5 };
+	ratingLoading = false;
+	ratingLoadError = '';
+	private ratingRequestId = 0;
+	teams: Team[] = [];
+	balanceGap = 0;
+	swapPlayerId: string | null = null;
+	teamsMessageCopied = false;
+	teamsMessageError = '';
 
-  ngOnInit(): void {
-    this.http.get<SessionUser>('/api/auth/me').pipe(
-      catchError(() => of(null)),
-    ).subscribe((user) => {
-      if (!user) return;
-      this.sessionUser = user;
-      this.changeDetector.detectChanges();
-      void this.loadDashboard();
-    });
-  }
+	ngOnInit(): void {
+		this.http.get<SessionUser>('/api/auth/me').pipe(
+			catchError(() => of(null)),
+		).subscribe((user) => {
+			if (!user) return;
+			this.sessionUser = user;
+			this.changeDetector.detectChanges();
+			void this.loadDashboard();
+		});
+	}
 
-  get isAdmin(): boolean {
-    return this.sessionUser?.role === 'admin';
-  }
+	get isAdmin(): boolean {
+		return this.sessionUser?.role === 'admin';
+	}
 
-  get availablePlayers(): Player[] {
-    const linkedPlayerIds = new Set(this.memberAccounts.map((member) => member.playerId));
-    return this.players.filter((player) => !linkedPlayerIds.has(player.id));
-  }
+	get availablePlayers(): Player[] {
+		const linkedPlayerIds = new Set(this.memberAccounts.map((member) => member.playerId));
+		return this.players.filter((player) => !linkedPlayerIds.has(player.id));
+	}
 
-  get filteredPlayers(): Player[] {
-    const query = this.searchTerm.trim().toLowerCase();
-    return this.players.filter((player) => player.name.toLowerCase().includes(query));
-  }
+	get filteredPlayers(): Player[] {
+		const query = this.searchTerm.trim().toLowerCase();
+		return this.players.filter((player) => player.name.toLowerCase().includes(query));
+	}
 
-  get totalRatings(): number {
-    return this.players.reduce((total, player) => total + player.ratingCount, 0);
-  }
+	get totalRatings(): number {
+		return this.players.reduce((total, player) => total + player.ratingCount, 0);
+	}
 
-  initials(name: string): string {
-    return name.split(/\s+/).slice(0, 2).map((part) => part[0]).join('').toUpperCase();
-  }
+	initials(name: string): string {
+		return name.split(/\s+/).slice(0, 2).map((part) => part[0]).join('').toUpperCase();
+	}
 
-  formatScore(score: number | null): string {
-    return score === null ? '—' : score.toFixed(1);
-  }
+	formatScore(score: number | null): string {
+		return score === null ? '—' : score.toFixed(1);
+	}
 
-  isOwnPlayer(player: Player): boolean {
-    return this.sessionUser?.role === 'member' && this.sessionUser.playerId === player.id;
-  }
+	swapPlayerName(): string {
+		return this.teams
+			.flatMap((team) => team.players)
+			.find((player) => player.id === this.swapPlayerId)?.name ?? 'selected player';
+	}
 
-  isPlayerSelected(player: Player): boolean {
-    return this.selectedPlayerIds.includes(player.id);
-  }
+	selectTeamPlayerForSwap(team: Team, player: Player): void {
+		if (!this.swapPlayerId) {
+			this.swapPlayerId = player.id;
+			return;
+		}
 
-  togglePlayer(player: Player, event: Event): void {
-    const checkbox = event.target;
-    if (!(checkbox instanceof HTMLInputElement)) return;
-    this.selectedPlayerIds = checkbox.checked
-      ? [...this.selectedPlayerIds, player.id]
-      : this.selectedPlayerIds.filter((id) => id !== player.id);
-  }
+		if (this.swapPlayerId === player.id) {
+			this.swapPlayerId = null;
+			return;
+		}
 
-  skillLabel(skill: Skill): string {
-    return skill === 'dribbling' ? 'Dribbling' : skill === 'defending' ? 'Defending' : skill[0].toUpperCase() + skill.slice(1);
-  }
+		const selectedTeamIndex = this.teams.findIndex((candidate) =>
+			candidate.players.some((candidatePlayer) => candidatePlayer.id === this.swapPlayerId),
+		);
+		const targetTeamIndex = this.teams.indexOf(team);
+		if (selectedTeamIndex === -1 || targetTeamIndex === -1) {
+			this.swapPlayerId = null;
+			return;
+		}
+		if (selectedTeamIndex === targetTeamIndex) {
+			this.swapPlayerId = player.id;
+			return;
+		}
 
-  leagueMedian(skill: Skill): number | null {
-    const values = this.players.map((player) => player.stats[skill]).filter((value): value is number => value !== null).sort((a, b) => a - b);
-    if (!values.length) return null;
-    const middle = Math.floor(values.length / 2);
-    return values.length % 2 ? values[middle] : (values[middle - 1] + values[middle]) / 2;
-  }
+		const selectedTeam = this.teams[selectedTeamIndex];
+		const selectedPlayerIndex = selectedTeam.players.findIndex(
+			(candidate) => candidate.id === this.swapPlayerId,
+		);
+		const targetPlayerIndex = team.players.findIndex(
+			(candidate) => candidate.id === player.id,
+		);
+		if (selectedPlayerIndex === -1 || targetPlayerIndex === -1) {
+			this.swapPlayerId = null;
+			return;
+		}
 
-  async login(): Promise<void> {
-    if (this.loginBusy) return;
-    this.loginBusy = true;
-    this.loginError = '';
-    try {
-      const result = await firstValueFrom(this.http.post<{ user: SessionUser }>('/api/auth/login', {
-        username: this.loginUsername.trim(),
-        password: this.loginPassword,
-      }));
-      this.sessionUser = result.user;
-      this.loginPassword = '';
-      this.changeDetector.detectChanges();
-      await this.loadDashboard();
-    } catch (error) {
-      this.loginError = error instanceof HttpErrorResponse && error.status === 401
-        ? 'Username or password is incorrect.'
-        : 'Could not sign in. Check that the league server is available.';
-    } finally {
-      this.loginBusy = false;
-      this.changeDetector.detectChanges();
-    }
-  }
+		const updatedTeams = this.teams.map((candidate) => ({
+			...candidate,
+			players: [...candidate.players],
+		}));
+		updatedTeams[selectedTeamIndex].players[selectedPlayerIndex] = player;
+		updatedTeams[targetTeamIndex].players[targetPlayerIndex] = selectedTeam.players[selectedPlayerIndex];
+		updatedTeams.forEach((candidate) => {
+			candidate.average = this.teamAverage(candidate.players);
+		});
+		this.teams = updatedTeams;
+		this.balanceGap = Math.abs(updatedTeams[0].average - updatedTeams[1].average);
+		this.swapPlayerId = null;
+		this.teamsMessageCopied = false;
+		this.teamsMessageError = '';
+		this.changeDetector.detectChanges();
+	}
 
-  async logout(): Promise<void> {
-    try {
-      await firstValueFrom(this.http.post<void>('/api/auth/logout', {}));
-      this.sessionUser = null;
-      this.players = [];
-      this.memberAccounts = [];
-      this.teams = [];
-      this.modal = null;
-      this.changeDetector.detectChanges();
-    } catch (error) {
-      this.showApiError(error);
-    }
-  }
+	private teamAverage(players: Player[]): number {
+		return SKILLS.reduce((teamTotal, skill) => {
+			const ratings = players
+				.map((player) => player.stats[skill])
+				.filter((rating): rating is number => rating !== null);
+			const skillAverage = ratings.length
+				? ratings.reduce((sum, rating) => sum + rating, 0) / ratings.length
+				: 0;
+			return teamTotal + skillAverage;
+		}, 0) / SKILLS.length;
+	}
 
-  private async loadDashboard(): Promise<void> {
-    try {
-      this.players = await firstValueFrom(this.http.get<Player[]>('/api/players'));
-      this.selectedPlayerIds = this.players.slice(0, 10).map((player) => player.id);
-      this.changeDetector.detectChanges();
-      if (this.isAdmin) {
-        this.memberAccounts = await firstValueFrom(this.http.get<MemberAccount[]>('/api/users'));
-      } else {
-        this.memberAccounts = [];
-      }
-      this.changeDetector.detectChanges();
-    } catch (error) {
-      this.showApiError(error);
-      this.changeDetector.detectChanges();
-    }
-  }
+	teamSkillAverage(team: Team, skill: Skill): number | null {
+		const ratings = team.players
+			.map((player) => player.stats[skill])
+			.filter((rating): rating is number => rating !== null);
+		return ratings.length
+			? ratings.reduce((sum, rating) => sum + rating, 0) / ratings.length
+			: null;
+	}
 
-  openAddPlayer(): void {
-    if (!this.isAdmin) return;
-    this.newPlayerName = '';
-    this.modal = 'player';
-  }
+	teamsWhatsAppMessage(): string {
+		const teamLines = this.teams.map((team) =>
+			`*${team.name}*\n${team.players.map((player) => `• ${player.name}`).join('\n')}`,
+		);
+		return [
+			'⚽ *Thursday Futsal — 21:00*',
+			'',
+			...teamLines.flatMap((line) => [line, '']),
+			`⚖️ Team skill gap: ${this.balanceGap.toFixed(1)} points`,
+			'See you there! 🙌',
+		].join('\n').trim();
+	}
 
-  openRating(player: Player): void {
-    if (this.isOwnPlayer(player)) return;
-    this.errorMessage = '';
-    this.selectedPlayer = player;
-    this.ratingDraft = { dribbling: 7, speed: 7, shooting: 7, stamina: 7, passing: 7, defending: 7 };
-    this.modal = 'rating';
-  }
+	async copyTeamsMessage(): Promise<void> {
+		if (!this.teams.length) return;
+		this.teamsMessageCopied = false;
+		this.teamsMessageError = '';
+		try {
+			await navigator.clipboard.writeText(this.teamsWhatsAppMessage());
+			this.teamsMessageCopied = true;
+		} catch {
+			this.teamsMessageError = 'Clipboard access is unavailable. Select and copy the message above.';
+		}
+		this.changeDetector.detectChanges();
+	}
 
-  openDelete(player: Player): void {
-    if (!this.isAdmin) return;
-    this.errorMessage = '';
-    this.selectedPlayer = player;
-    this.modal = 'delete';
-  }
+	isOwnPlayer(player: Player): boolean {
+		return this.sessionUser?.role === 'member' && this.sessionUser.playerId === player.id;
+	}
 
-  closeModal(): void {
-    if (this.deletingPlayer || this.creatingMember) return;
-    this.generatedCredentials = null;
-    this.userAdminError = '';
-    this.modal = null;
-    this.selectedPlayer = null;
-    this.errorMessage = '';
-  }
+	isPlayerSelected(player: Player): boolean {
+		return this.selectedPlayerIds.includes(player.id);
+	}
 
-  async deletePlayer(): Promise<void> {
-    const player = this.selectedPlayer;
-    if (!player || !this.isAdmin || this.deletingPlayer) return;
+	togglePlayer(player: Player, event: Event): void {
+		const checkbox = event.target;
+		if (!(checkbox instanceof HTMLInputElement)) return;
+		this.selectedPlayerIds = checkbox.checked
+			? [...this.selectedPlayerIds, player.id]
+			: this.selectedPlayerIds.filter((id) => id !== player.id);
+	}
 
-    this.deletingPlayer = true;
-    this.errorMessage = '';
-    try {
-      await firstValueFrom(this.http.delete<void>(`/api/players/${player.id}`));
-      this.players = this.players.filter((candidate) => candidate.id !== player.id);
-      this.selectedPlayerIds = this.selectedPlayerIds.filter((id) => id !== player.id);
-      this.memberAccounts = this.memberAccounts.filter((member) => member.playerId !== player.id);
-      this.teams = [];
-      this.modal = null;
-      this.selectedPlayer = null;
-      this.changeDetector.detectChanges();
-    } catch (error) {
-      this.errorMessage = error instanceof HttpErrorResponse && error.status === 409
-        ? 'Remove this player’s member login before deleting their profile.'
-        : 'Could not delete this player. Check your connection and try again.';
-      this.changeDetector.detectChanges();
-    } finally {
-      this.deletingPlayer = false;
-      this.changeDetector.detectChanges();
-    }
-  }
+	skillLabel(skill: Skill): string {
+		return skill === 'dribbling' ? 'Dribbling' : skill === 'defending' ? 'Defending' : skill[0].toUpperCase() + skill.slice(1);
+	}
 
-  async addPlayer(): Promise<void> {
-    if (!this.isAdmin) return;
-    const name = this.newPlayerName.trim();
-    if (!name) return;
-    try {
-      const saved = await firstValueFrom(this.http.post<Player>('/api/players', { name }));
-      this.players = [...this.players, saved];
-      this.closeModal();
-      this.changeDetector.detectChanges();
-    } catch (error) {
-      this.showApiError(error);
-      this.changeDetector.detectChanges();
-    }
-  }
+	leagueMedian(skill: Skill): number | null {
+		const values = this.players.map((player) => player.stats[skill]).filter((value): value is number => value !== null).sort((a, b) => a - b);
+		if (!values.length) return null;
+		const middle = Math.floor(values.length / 2);
+		return values.length % 2 ? values[middle] : (values[middle - 1] + values[middle]) / 2;
+	}
 
-  async saveRating(): Promise<void> {
-    if (!this.selectedPlayer) return;
-    const player = this.selectedPlayer;
-    if (this.isOwnPlayer(player)) return;
-    try {
-      const updated = await firstValueFrom(this.http.post<Player>(`/api/players/${player.id}/ratings`, {
-        stats: this.ratingDraft,
-      }));
-      this.players = this.players.map((candidate) => candidate.id === updated.id ? updated : candidate);
-      this.closeModal();
-      this.changeDetector.detectChanges();
-    } catch (error) {
-      this.showApiError(error);
-      this.changeDetector.detectChanges();
-    }
-  }
+	async login(): Promise<void> {
+		if (this.loginBusy) return;
+		this.loginBusy = true;
+		this.loginError = '';
+		try {
+			const result = await firstValueFrom(this.http.post<{ user: SessionUser }>('/api/auth/login', {
+				username: this.loginUsername.trim(),
+				password: this.loginPassword,
+			}));
+			this.sessionUser = result.user;
+			this.loginPassword = '';
+			this.changeDetector.detectChanges();
+			await this.loadDashboard();
+		} catch (error) {
+			this.loginError = error instanceof HttpErrorResponse && error.status === 401
+				? 'Username or password is incorrect.'
+				: 'Could not sign in. Check that the league server is available.';
+		} finally {
+			this.loginBusy = false;
+			this.changeDetector.detectChanges();
+		}
+	}
 
-  async generateTeams(): Promise<void> {
-    if (!this.isAdmin) return;
-    const selected = this.selectedPlayerIds
-      .map((id) => this.players.find((player) => player.id === id))
-      .filter((player): player is Player => player !== undefined);
-    if (selected.length !== this.selectedCount) {
-      this.errorMessage = `Select exactly ${this.selectedCount} players to build teams.`;
-      this.teams = [];
-      return;
-    }
-    if (selected.some((player) => player.ratingCount === 0)) {
-      this.errorMessage = 'Every selected player needs at least one peer rating.';
-      this.teams = [];
-      return;
-    }
-    this.errorMessage = '';
-    try {
-      const result = await firstValueFrom(this.http.post<{ teams: Team[]; balanceGap: number }>('/api/teams/generate', {
-        playerIds: selected.map((player) => player.id),
-      }));
-      this.teams = result.teams;
-      this.balanceGap = result.balanceGap;
-      this.changeDetector.detectChanges();
-      document.getElementById('team-builder')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    } catch (error) {
-      this.showApiError(error);
-      this.changeDetector.detectChanges();
-    }
-  }
+	async logout(): Promise<void> {
+		try {
+			await firstValueFrom(this.http.post<void>('/api/auth/logout', {}));
+			this.sessionUser = null;
+			this.players = [];
+			this.memberAccounts = [];
+			this.teams = [];
+			this.modal = null;
+			this.changeDetector.detectChanges();
+		} catch (error) {
+			this.showApiError(error);
+		}
+	}
 
-  scrollToPlayers(): void {
-    document.getElementById('players')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  }
+	private async loadDashboard(): Promise<void> {
+		try {
+			this.players = await firstValueFrom(this.http.get<Player[]>('/api/players'));
+			this.selectedPlayerIds = this.players.slice(0, 10).map((player) => player.id);
+			this.changeDetector.detectChanges();
+			if (this.isAdmin) {
+				this.memberAccounts = await firstValueFrom(this.http.get<MemberAccount[]>('/api/users'));
+			} else {
+				this.memberAccounts = [];
+			}
+			this.changeDetector.detectChanges();
+		} catch (error) {
+			this.showApiError(error);
+			this.changeDetector.detectChanges();
+		}
+	}
 
-  scrollToTeamBuilder(): void {
-    document.getElementById('team-builder')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  }
+	openAddPlayer(): void {
+		if (!this.isAdmin) return;
+		this.newPlayerName = '';
+		this.modal = 'player';
+	}
 
-  openUserManagement(): void {
-    if (!this.isAdmin) return;
-    this.userAdminError = '';
-    this.generatedCredentials = null;
-    this.newUsername = '';
-    this.newMemberPlayerId = '';
-    this.modal = 'users';
-    void this.refreshMembers();
-  }
+	async openRating(player: Player): Promise<void> {
+		if (this.isOwnPlayer(player)) return;
+		this.errorMessage = '';
+		this.selectedPlayer = player;
+		this.modal = 'rating';
+		this.ratingDraft = { dribbling: 5, speed: 5, shooting: 5, stamina: 5, passing: 5, defending: 5 };
+		this.ratingLoading = true;
+		this.ratingLoadError = '';
+		const requestId = ++this.ratingRequestId;
+		try {
+			const rating = await firstValueFrom(
+				this.http.get<RatingStats | null>(`/api/players/${player.id}/my-rating`),
+			);
+			if (requestId !== this.ratingRequestId || this.selectedPlayer?.id !== player.id) return;
+			if (rating) this.ratingDraft = { ...rating };
+		} catch {
+			if (requestId !== this.ratingRequestId || this.selectedPlayer?.id !== player.id) return;
+			this.ratingLoadError = 'Could not load your previous rating. Try again before submitting.';
+		} finally {
+			if (requestId === this.ratingRequestId && this.selectedPlayer?.id === player.id) {
+				this.ratingLoading = false;
+				this.changeDetector.detectChanges();
+			}
+		}
+	}
 
-  private async refreshMembers(): Promise<void> {
-    try {
-      this.memberAccounts = await firstValueFrom(this.http.get<MemberAccount[]>('/api/users'));
-      this.changeDetector.detectChanges();
-    } catch (error) {
-      this.userAdminError = 'Could not load member accounts.';
-      this.showApiError(error);
-      this.changeDetector.detectChanges();
-    }
-  }
+	openDelete(player: Player): void {
+		if (!this.isAdmin) return;
+		this.errorMessage = '';
+		this.selectedPlayer = player;
+		this.modal = 'delete';
+	}
 
-  async createMember(): Promise<void> {
-    if (!this.isAdmin || this.creatingMember) return;
-    this.creatingMember = true;
-    this.userAdminError = '';
-    this.generatedCredentials = null;
-    try {
-      const result = await firstValueFrom(this.http.post<{
-        user: MemberAccount;
-        temporaryPassword: string;
-      }>('/api/users', {
-        username: this.newUsername.trim(),
-        playerId: this.newMemberPlayerId,
-      }));
-      this.memberAccounts = [...this.memberAccounts, result.user].sort((a, b) => a.username.localeCompare(b.username));
-      this.generatedCredentials = { username: result.user.username, password: result.temporaryPassword };
-      this.newUsername = '';
-      this.newMemberPlayerId = '';
-      this.changeDetector.detectChanges();
-    } catch (error) {
-      this.userAdminError = error instanceof HttpErrorResponse && error.status === 409
-        ? 'That username or player already has an account.'
-        : 'Could not create the member account.';
-      this.showApiError(error);
-      this.changeDetector.detectChanges();
-    } finally {
-      this.creatingMember = false;
-      this.changeDetector.detectChanges();
-    }
-  }
+	closeModal(): void {
+		if (this.deletingPlayer || this.creatingMember) return;
+		this.ratingRequestId += 1;
+		this.ratingLoading = false;
+		this.ratingLoadError = '';
+		this.generatedCredentials = null;
+		this.userAdminError = '';
+		this.modal = null;
+		this.selectedPlayer = null;
+		this.errorMessage = '';
+	}
 
-  async copyPassword(): Promise<void> {
-    if (!this.generatedCredentials) return;
-    try {
-      await navigator.clipboard.writeText(this.generatedCredentials.password);
-    } catch {
-      this.userAdminError = 'Clipboard access is unavailable. Select and copy the password manually.';
-    }
-  }
+	async deletePlayer(): Promise<void> {
+		const player = this.selectedPlayer;
+		if (!player || !this.isAdmin || this.deletingPlayer) return;
 
-  async removeMember(member: MemberAccount): Promise<void> {
-    if (!this.isAdmin || !confirm(`Remove the login for ${member.username}?`)) return;
-    try {
-      await firstValueFrom(this.http.delete<void>(`/api/users/${member.id}`));
-      this.memberAccounts = this.memberAccounts.filter((account) => account.id !== member.id);
-      this.changeDetector.detectChanges();
-    } catch (error) {
-      this.userAdminError = 'Could not remove this member account.';
-      this.showApiError(error);
-      this.changeDetector.detectChanges();
-    }
-  }
+		this.deletingPlayer = true;
+		this.errorMessage = '';
+		try {
+			await firstValueFrom(this.http.delete<void>(`/api/players/${player.id}`));
+			this.players = this.players.filter((candidate) => candidate.id !== player.id);
+			this.selectedPlayerIds = this.selectedPlayerIds.filter((id) => id !== player.id);
+			this.memberAccounts = this.memberAccounts.filter((member) => member.playerId !== player.id);
+			this.teams = [];
+			this.modal = null;
+			this.selectedPlayer = null;
+			this.changeDetector.detectChanges();
+		} catch (error) {
+			this.errorMessage = error instanceof HttpErrorResponse && error.status === 409
+				? 'Remove this player’s member login before deleting their profile.'
+				: 'Could not delete this player. Check your connection and try again.';
+			this.changeDetector.detectChanges();
+		} finally {
+			this.deletingPlayer = false;
+			this.changeDetector.detectChanges();
+		}
+	}
 
-  playerName(playerId?: string): string {
-    return this.players.find((player) => player.id === playerId)?.name ?? 'Player profile unavailable';
-  }
+	async addPlayer(): Promise<void> {
+		if (!this.isAdmin) return;
+		const name = this.newPlayerName.trim();
+		if (!name) return;
+		try {
+			const saved = await firstValueFrom(this.http.post<Player>('/api/players', { name }));
+			this.players = [...this.players, saved];
+			this.modal = null;
+			this.newPlayerName = '';
+			this.changeDetector.detectChanges();
+		} catch (error) {
+			this.showApiError(error);
+			this.changeDetector.detectChanges();
+		}
+	}
 
-  private showApiError(error: unknown): void {
-    if (error instanceof HttpErrorResponse && error.status === 401) {
-      this.sessionUser = null;
-      this.players = [];
-      this.memberAccounts = [];
-      this.teams = [];
-      this.modal = null;
-      this.loginError = 'Your session expired. Please sign in again.';
-      return;
-    }
-    this.errorMessage = 'The league server could not save your change. Check your connection and try again.';
-  }
+	async saveRating(): Promise<void> {
+		if (!this.selectedPlayer || this.ratingLoading || this.ratingLoadError) return;
+		const player = this.selectedPlayer;
+		if (this.isOwnPlayer(player)) return;
+		try {
+			const updated = await firstValueFrom(this.http.post<Player>(`/api/players/${player.id}/ratings`, {
+				stats: this.ratingDraft,
+			}));
+			this.players = this.players.map((candidate) => candidate.id === updated.id ? updated : candidate);
+			this.closeModal();
+			this.changeDetector.detectChanges();
+		} catch (error) {
+			this.showApiError(error);
+			this.changeDetector.detectChanges();
+		}
+	}
+
+	async generateTeams(): Promise<void> {
+		const selected = this.selectedPlayerIds
+			.map((id) => this.players.find((player) => player.id === id))
+			.filter((player): player is Player => player !== undefined);
+		if (selected.length !== this.selectedCount) {
+			this.errorMessage = `Select exactly ${this.selectedCount} players to build teams.`;
+			this.teams = [];
+			this.swapPlayerId = null;
+			return;
+		}
+		if (selected.some((player) => player.ratingCount === 0)) {
+			this.errorMessage = 'Every selected player needs at least one peer rating.';
+			this.teams = [];
+			this.swapPlayerId = null;
+			return;
+		}
+		this.errorMessage = '';
+		this.swapPlayerId = null;
+		this.teamsMessageCopied = false;
+		this.teamsMessageError = '';
+		try {
+			const result = await firstValueFrom(this.http.post<{ teams: Team[]; balanceGap: number }>('/api/teams/generate', {
+				playerIds: selected.map((player) => player.id),
+			}));
+			this.teams = result.teams;
+			this.balanceGap = result.balanceGap;
+			this.changeDetector.detectChanges();
+			document.getElementById('team-builder')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+		} catch (error) {
+			this.showApiError(error);
+			this.changeDetector.detectChanges();
+		}
+	}
+
+	scrollToPlayers(): void {
+		document.getElementById('players')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+	}
+
+	scrollToTeamBuilder(): void {
+		document.getElementById('team-builder')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+	}
+
+	openUserManagement(): void {
+		if (!this.isAdmin) return;
+		this.userAdminError = '';
+		this.generatedCredentials = null;
+		this.newUsername = '';
+		this.newMemberPlayerId = '';
+		this.modal = 'users';
+		void this.refreshMembers();
+	}
+
+	private async refreshMembers(): Promise<void> {
+		try {
+			this.memberAccounts = await firstValueFrom(this.http.get<MemberAccount[]>('/api/users'));
+			this.changeDetector.detectChanges();
+		} catch (error) {
+			this.userAdminError = 'Could not load member accounts.';
+			this.showApiError(error);
+			this.changeDetector.detectChanges();
+		}
+	}
+
+	async createMember(): Promise<void> {
+		if (!this.isAdmin || this.creatingMember) return;
+		this.creatingMember = true;
+		this.userAdminError = '';
+		this.generatedCredentials = null;
+		try {
+			const result = await firstValueFrom(this.http.post<{
+				user: MemberAccount;
+				temporaryPassword: string;
+			}>('/api/users', {
+				username: this.newUsername.trim(),
+				playerId: this.newMemberPlayerId,
+			}));
+			this.memberAccounts = [...this.memberAccounts, result.user].sort((a, b) => a.username.localeCompare(b.username));
+			this.generatedCredentials = { username: result.user.username, password: result.temporaryPassword };
+			this.newUsername = '';
+			this.newMemberPlayerId = '';
+			this.changeDetector.detectChanges();
+		} catch (error) {
+			this.userAdminError = error instanceof HttpErrorResponse && error.status === 409
+				? 'That username or player already has an account.'
+				: 'Could not create the member account.';
+			this.showApiError(error);
+			this.changeDetector.detectChanges();
+		} finally {
+			this.creatingMember = false;
+			this.changeDetector.detectChanges();
+		}
+	}
+
+	async copyPassword(): Promise<void> {
+		if (!this.generatedCredentials) return;
+		try {
+			await navigator.clipboard.writeText(this.generatedCredentials.password);
+		} catch {
+			this.userAdminError = 'Clipboard access is unavailable. Select and copy the password manually.';
+		}
+	}
+
+	async removeMember(member: MemberAccount): Promise<void> {
+		if (!this.isAdmin || !confirm(`Remove the login for ${member.username}?`)) return;
+		try {
+			await firstValueFrom(this.http.delete<void>(`/api/users/${member.id}`));
+			this.memberAccounts = this.memberAccounts.filter((account) => account.id !== member.id);
+			this.changeDetector.detectChanges();
+		} catch (error) {
+			this.userAdminError = 'Could not remove this member account.';
+			this.showApiError(error);
+			this.changeDetector.detectChanges();
+		}
+	}
+
+	playerName(playerId?: string): string {
+		return this.players.find((player) => player.id === playerId)?.name ?? 'Player profile unavailable';
+	}
+
+	private showApiError(error: unknown): void {
+		if (error instanceof HttpErrorResponse && error.status === 401) {
+			this.sessionUser = null;
+			this.players = [];
+			this.memberAccounts = [];
+			this.teams = [];
+			this.modal = null;
+			this.loginError = 'Your session expired. Please sign in again.';
+			return;
+		}
+		this.errorMessage = 'The league server could not save your change. Check your connection and try again.';
+	}
 }
