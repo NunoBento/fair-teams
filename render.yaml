@@ -3,7 +3,6 @@ services:
     name: fiveaside-mongodb
     runtime: docker
     autoDeploy: false
-    plan: free
     disk:
       name: data
       mountPath: /data/db
