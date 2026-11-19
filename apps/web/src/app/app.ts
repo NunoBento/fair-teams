@@ -105,7 +105,6 @@ interface MemberAccount {
           <button class="nav-item" title="Live match" aria-label="Live match" [class.active]="currentPage === 'match'" (click)="showMatchPage()"><span class="nav-icon">⚽</span> Live match</button>
           <button class="nav-item" title="Stats and match history" aria-label="Stats and match history" [class.active]="currentPage === 'stats'" (click)="showStatsPage()"><span class="nav-icon">▤</span> Stats</button>
           <button class="nav-item" title="Players" aria-label="Players" (click)="goToPlayers()"><span class="nav-icon">◎</span> Players <span class="nav-count">{{ players.length }}</span></button>
-          <button class="nav-item" title="Team builder" aria-label="Team builder" (click)="goToTeamBuilder()"><span class="nav-icon">⌘</span> Team builder</button>
           @if (isAdmin) {
             <button class="nav-item" title="Members" aria-label="Members" (click)="openUserManagement()"><span class="nav-icon">♙</span> Members <span class="nav-count">{{ memberAccounts.length }}</span></button>
           }
@@ -168,11 +167,10 @@ interface MemberAccount {
               </div>
               <div class="table-wrap">
                 <table>
-                  <thead><tr><th>SELECT</th><th>PLAYER</th><th>DRIBBLE</th><th>SPEED</th><th>SHOOTING</th><th>STAMINA</th><th>PASSING</th><th>DEFENCE</th><th>REVIEWS</th><th></th></tr></thead>
+                  <thead><tr><th>PLAYER</th><th>DRIBBLE</th><th>SPEED</th><th>SHOOTING</th><th>STAMINA</th><th>PASSING</th><th>DEFENCE</th><th>REVIEWS</th><th></th></tr></thead>
                   <tbody>
                     @for (player of filteredPlayers; track player.id; let i = $index) {
                       <tr>
-                        <td><input class="team-select-checkbox" type="checkbox" [checked]="isPlayerSelected(player)" [disabled]="!player.ratingCount" [attr.aria-label]="'Select ' + player.name + ' for teams'" (change)="togglePlayer(player, $event)" /></td>
                         <td><div class="player-name-cell"><span class="player-avatar avatar-{{ i % 6 }}">{{ initials(player.name) }}</span><strong>{{ player.name }}</strong></div></td>
                         @for (skill of skills; track skill) {
                           <td><span class="rating-value" [class.rating-indicator]="player.stats[skill] !== null" [class.rating-muted]="player.stats[skill] === null" [style.--rating-hue]="(player.stats[skill] ?? 0) * 12">{{ formatScore(player.stats[skill]) }}</span></td>
@@ -184,12 +182,12 @@ interface MemberAccount {
                         </td>
                       </tr>
                     } @empty {
-                      <tr><td class="empty-row" colspan="10">No players match your search.</td></tr>
+                      <tr><td class="empty-row" colspan="9">No players match your search.</td></tr>
                     }
                   </tbody>
                 </table>
               </div>
-              <div class="table-footer"><span>Showing <strong>{{ filteredPlayers.length }}</strong> of <strong>{{ players.length }}</strong> players <i>·</i> <strong>{{ selectedPlayerIds.length }}</strong> selected for teams</span></div>
+              <div class="table-footer"><span>Showing <strong>{{ filteredPlayers.length }}</strong> of <strong>{{ players.length }}</strong> players</span></div>
             </article>
 
             <aside class="panel skills-panel">
@@ -204,87 +202,6 @@ interface MemberAccount {
                 }
               </div>
             </aside>
-          </section>
-
-          <section class="panel builder-panel" id="team-builder">
-            <div class="builder-header">
-              <div class="builder-copy">
-                <div class="builder-icon">✳</div>
-                <div><div class="section-kicker">MATCH DAY, MADE FAIR</div><h2>Build your teams</h2><p>Choose your players and create two balanced sides.</p></div>
-              </div>
-              <div class="builder-controls">
-                <label class="select-wrap"><span>FORMAT</span><select [(ngModel)]="selectedCount"><option [ngValue]="10">10 players · 5v5</option><option [ngValue]="8">8 players · 4v4</option></select></label>
-                <button class="build-button" (click)="generateTeams()">✨ <span>{{ teams.length ? 'Regenerate teams' : 'Build teams' }}</span></button>
-              </div>
-            </div>
-            @if (teams.length) {
-              <div class="swap-hint"><span>↔</span> Want to make a change? Select one player from each team to swap them.</div>
-              <div class="teams-result">
-                @for (team of teams; track team.name; let i = $index) {
-                  <div class="team-result-card" [class.team-a-card]="i === 0" [class.team-b-card]="i === 1">
-                    <div class="result-team-heading">
-                      <span class="team-badge" [class.badge-lime]="i === 0" [class.badge-purple]="i === 1">{{ i === 0 ? 'A' : 'B' }}</span>
-                      <div class="result-team-title"><strong>Team {{ i === 0 ? 'A' : 'B' }}</strong><small>{{ team.players.length }} players</small></div>
-                      <div class="team-average" [style.--rating-hue]="team.average * 12">
-                        <strong>{{ team.average | number:'1.1-1' }}</strong><small>avg / 10</small>
-                      </div>
-                    </div>
-                    <svg class="radar-chart team-radar-chart" viewBox="0 0 220 205" role="img" [attr.aria-label]="'Team ' + (i === 0 ? 'A' : 'B') + ' skill ratings radar chart'">
-                      <polygon class="radar-grid" [attr.points]="radarGridPoints(10)" />
-                      <polygon class="radar-grid radar-grid-inner" [attr.points]="radarGridPoints(5)" />
-                      @for (skill of skills; track skill; let axis = $index) {
-                        <line class="radar-axis" x1="110" y1="103" [attr.x2]="radarAxisPoint(axis).x" [attr.y2]="radarAxisPoint(axis).y" />
-                      }
-                      <polygon class="radar-data" [class.radar-data-team-a]="i === 0" [class.radar-data-team-b]="i === 1" [attr.points]="radarPoints(teamRadarStats(team))" />
-                      <text class="radar-label" x="110" y="13" text-anchor="middle">Dribbling</text>
-                      <text class="radar-label" x="185" y="57" text-anchor="start">Speed</text>
-                      <text class="radar-label" x="185" y="157" text-anchor="start">Shooting</text>
-                      <text class="radar-label" x="110" y="201" text-anchor="middle">Stamina</text>
-                      <text class="radar-label" x="35" y="157" text-anchor="end">Passing</text>
-                      <text class="radar-label" x="35" y="57" text-anchor="end">Defending</text>
-                    </svg>
-                    <div class="team-skill-averages" aria-label="Team skill averages">
-                      @for (skill of skills; track skill) {
-                        <div
-                          class="team-skill-average"
-                          [style.--rating-hue]="(teamSkillAverage(team, skill) ?? 0) * 12"
-                        >
-                          <span>{{ skillLabel(skill) }}</span>
-                          <strong>{{ formatScore(teamSkillAverage(team, skill)) }}</strong>
-                        </div>
-                      }
-                    </div>
-                    <div class="team-player-list">
-                      @for (player of team.players; track player.id) {
-                        <button
-                          type="button"
-                          class="team-player"
-                          [class.swap-selected]="swapPlayerId === player.id"
-                          [attr.aria-label]="swapPlayerId === player.id ? player.name + ' selected for swap' : swapPlayerId ? 'Swap ' + player.name + ' with ' + swapPlayerName() : 'Select ' + player.name + ' to swap'"
-                          (click)="selectTeamPlayerForSwap(team, player)"
-                        >
-                          <span class="team-player-avatar">{{ initials(player.name) }}</span>
-                          <span class="team-player-name">{{ player.name }}</span>
-                          <span class="swap-action">{{ swapPlayerId === player.id ? 'Selected' : swapPlayerId ? 'Swap' : '↔' }}</span>
-                        </button>
-                      }
-                    </div>
-                  </div>
-                }
-                <div class="balance-result"><span class="balance-result-icon">⚖</span><div><strong>Average skill gap</strong><span>{{ balanceGap | number:'1.1-1' }} points between teams</span></div></div>
-                </div>
-                <section class="whatsapp-share" aria-labelledby="whatsapp-title">
-                  <div class="whatsapp-share-header">
-                    <div><div class="section-kicker">READY TO SHARE</div><h3 id="whatsapp-title">Match message</h3></div>
-                    <button class="copy-teams-button" type="button" (click)="copyTeamsMessage()">
-                      {{ teamsMessageCopied ? 'Copied!' : 'Copy message' }}
-                    </button>
-                  </div>
-                  <pre class="whatsapp-message">{{ teamsWhatsAppMessage() }}</pre>
-                  @if (teamsMessageError) { <p class="whatsapp-copy-error" role="alert">{{ teamsMessageError }}</p> }
-                  @else if (teamsMessageCopied) { <p class="whatsapp-copy-success" role="status">Message copied. Paste it into your WhatsApp group.</p> }
-                </section>
-            }
           </section>
 
           <footer class="page-footer"><span>fiveaside<span class="brand-period">.</span> <span>Built for the love of the game.</span></span><span>Thursday league <i>·</i> Weekly at 21:00</span></footer>
@@ -362,22 +279,88 @@ interface MemberAccount {
                 </div>
               </section>
             } @else {
-              <section class="panel start-match-panel">
-                <div class="start-match-icon">⚽</div>
-                <div class="section-kicker">READY WHEN YOU ARE</div>
-                <h2>Start a new game</h2>
-                @if (teams.length === 2) {
-                  <p>Team A will play as Brancos and Team B as Pretos. You can change players in the team builder before starting.</p>
-                  <div class="start-team-preview">
-                    <div><strong>Brancos</strong><span>{{ teamPlayerNames(teams[0]) }}</span></div>
-                    <div><strong>Pretos</strong><span>{{ teamPlayerNames(teams[1]) }}</span></div>
+              <section class="panel builder-panel" id="team-builder">
+                <div class="builder-header">
+                  <div class="builder-copy">
+                    <div class="builder-icon">✳</div>
+                    <div><h2>Set up this match</h2><p>Select who’s going, then build balanced teams.</p></div>
                   </div>
-                  <button class="build-button start-match-button" type="button" (click)="startMatch()" [disabled]="matchSaving">
-                    {{ matchSaving ? 'Starting…' : 'Start live game' }} <span>→</span>
+                  <label class="select-wrap"><span>FORMAT</span><select [ngModel]="selectedCount" (ngModelChange)="changeMatchFormat($event)"><option [ngValue]="10">10 players · 5v5</option><option [ngValue]="8">8 players · 4v4</option></select></label>
+                </div>
+                <section class="match-player-selection" aria-labelledby="match-player-title">
+                  <div class="match-selection-heading"><h3 id="match-player-title">Players going</h3><span>{{ selectedPlayerIds.length }} / {{ selectedCount }} selected</span></div>
+                  <div class="match-player-grid">
+                    @for (player of players; track player.id) {
+                      <label class="match-player-option" [class.is-selected]="isPlayerSelected(player)" [class.needs-rating]="!player.ratingCount">
+                        <input class="team-select-checkbox" type="checkbox" [checked]="isPlayerSelected(player)" [disabled]="!player.ratingCount || matchSaving || (!isPlayerSelected(player) && selectedPlayerIds.length >= selectedCount)" (change)="togglePlayer(player, $event)" />
+                        <span class="match-player-option-name">{{ player.name }}</span>
+                        <small>{{ player.ratingCount ? player.ratingCount + ' ratings' : 'Needs a rating' }}</small>
+                      </label>
+                    } @empty {
+                      <p class="match-player-empty">Add players to the roster before setting up a match.</p>
+                    }
+                  </div>
+                </section>
+                <div class="builder-controls match-builder-controls">
+                  <button class="build-button" type="button" (click)="generateTeams()" [disabled]="matchSaving || selectedPlayerIds.length !== selectedCount">
+                    {{ matchSaving ? 'Building…' : teams.length ? 'Rebuild balanced teams' : 'Build balanced teams' }}
                   </button>
-                } @else {
-                  <p>Build balanced teams first, then come back here to start keeping score.</p>
-                  <button class="build-button start-match-button" type="button" (click)="goToTeamBuilder()">Go to team builder <span>→</span></button>
+                </div>
+                @if (teams.length) {
+                  <div class="swap-hint"><span>↔</span> Select one player from each team to swap them.</div>
+                  <div class="teams-result">
+                    @for (team of teams; track team.name; let i = $index) {
+                      <div class="team-result-card" [class.team-a-card]="i === 0" [class.team-b-card]="i === 1">
+                        <div class="result-team-heading">
+                          <span class="team-badge" [class.badge-lime]="i === 0" [class.badge-purple]="i === 1">{{ i === 0 ? 'A' : 'B' }}</span>
+                          <div class="result-team-title"><strong>Team {{ i === 0 ? 'A' : 'B' }}</strong><small>{{ team.players.length }} players</small></div>
+                          <div class="team-average" [style.--rating-hue]="team.average * 12">
+                            <strong>{{ team.average | number:'1.1-1' }}</strong><small>avg / 10</small>
+                          </div>
+                        </div>
+                        <svg class="radar-chart team-radar-chart" viewBox="0 0 220 205" role="img" [attr.aria-label]="'Team ' + (i === 0 ? 'A' : 'B') + ' skill ratings radar chart'">
+                          <polygon class="radar-grid" [attr.points]="radarGridPoints(10)" />
+                          <polygon class="radar-grid radar-grid-inner" [attr.points]="radarGridPoints(5)" />
+                          @for (skill of skills; track skill; let axis = $index) {
+                            <line class="radar-axis" x1="110" y1="103" [attr.x2]="radarAxisPoint(axis).x" [attr.y2]="radarAxisPoint(axis).y" />
+                          }
+                          <polygon class="radar-data" [class.radar-data-team-a]="i === 0" [class.radar-data-team-b]="i === 1" [attr.points]="radarPoints(teamRadarStats(team))" />
+                          <text class="radar-label" x="110" y="13" text-anchor="middle">Dribbling</text>
+                          <text class="radar-label" x="185" y="57" text-anchor="start">Speed</text>
+                          <text class="radar-label" x="185" y="157" text-anchor="start">Shooting</text>
+                          <text class="radar-label" x="110" y="201" text-anchor="middle">Stamina</text>
+                          <text class="radar-label" x="35" y="157" text-anchor="end">Passing</text>
+                          <text class="radar-label" x="35" y="57" text-anchor="end">Defending</text>
+                        </svg>
+                        <div class="team-skill-averages" aria-label="Team skill averages">
+                          @for (skill of skills; track skill) {
+                            <div class="team-skill-average" [style.--rating-hue]="(teamSkillAverage(team, skill) ?? 0) * 12">
+                              <span>{{ skillLabel(skill) }}</span><strong>{{ formatScore(teamSkillAverage(team, skill)) }}</strong>
+                            </div>
+                          }
+                        </div>
+                        <div class="team-player-list">
+                          @for (player of team.players; track player.id) {
+                            <button type="button" class="team-player" [class.swap-selected]="swapPlayerId === player.id" [attr.aria-label]="swapPlayerId === player.id ? player.name + ' selected for swap' : swapPlayerId ? 'Swap ' + player.name + ' with ' + swapPlayerName() : 'Select ' + player.name + ' to swap'" (click)="selectTeamPlayerForSwap(team, player)">
+                              <span class="team-player-avatar">{{ initials(player.name) }}</span><span class="team-player-name">{{ player.name }}</span>
+                              <span class="swap-action">{{ swapPlayerId === player.id ? 'Selected' : swapPlayerId ? 'Swap' : '↔' }}</span>
+                            </button>
+                          }
+                        </div>
+                      </div>
+                    }
+                    <div class="balance-result"><span class="balance-result-icon">⚖</span><div><strong>Average skill gap</strong><span>{{ balanceGap | number:'1.1-1' }} points between teams</span></div></div>
+                  </div>
+                  <section class="whatsapp-share" aria-labelledby="whatsapp-title">
+                    <div class="whatsapp-share-header">
+                      <div><div class="section-kicker">READY TO SHARE</div><h3 id="whatsapp-title">Match message</h3></div>
+                      <button class="copy-teams-button" type="button" (click)="copyTeamsMessage()">{{ teamsMessageCopied ? 'Copied!' : 'Copy message' }}</button>
+                    </div>
+                    <pre class="whatsapp-message">{{ teamsWhatsAppMessage() }}</pre>
+                    @if (teamsMessageError) { <p class="whatsapp-copy-error" role="alert">{{ teamsMessageError }}</p> }
+                    @else if (teamsMessageCopied) { <p class="whatsapp-copy-success" role="status">Message copied. Paste it into your WhatsApp group.</p> }
+                  </section>
+                  <button class="build-button start-match-button" type="button" (click)="startMatch()" [disabled]="matchSaving">{{ matchSaving ? 'Starting…' : 'Start live match' }} <span>→</span></button>
                 }
               </section>
             }
@@ -630,11 +613,6 @@ export class App implements OnInit {
 		this.clearMatchRefresh();
 	}
 
-	goToTeamBuilder(): void {
-		this.showDashboard();
-		setTimeout(() => this.scrollToTeamBuilder());
-	}
-
 	goToPlayers(): void {
 		this.showDashboard();
 		setTimeout(() => this.scrollToPlayers());
@@ -791,10 +769,6 @@ export class App implements OnInit {
 
 	playerGoalCount(match: GameMatch, playerId: string): number {
 		return match.goals.filter((goal) => goal.playerId === playerId).length;
-	}
-
-	teamPlayerNames(team: Team): string {
-		return team.players.map((player) => player.name).join(' · ');
 	}
 
 	formatGameDate(value: string): string {
@@ -983,6 +957,18 @@ export class App implements OnInit {
 		this.selectedPlayerIds = checkbox.checked
 			? [...this.selectedPlayerIds, player.id]
 			: this.selectedPlayerIds.filter((id) => id !== player.id);
+		this.teams = [];
+		this.swapPlayerId = null;
+		this.errorMessage = '';
+		this.teamsMessageCopied = false;
+		this.teamsMessageError = '';
+	}
+
+	changeMatchFormat(count: number): void {
+		this.selectedCount = count;
+		this.teams = [];
+		this.swapPlayerId = null;
+		this.errorMessage = '';
 	}
 
 	skillLabel(skill: Skill): string {
@@ -1038,7 +1024,7 @@ export class App implements OnInit {
 	private async loadDashboard(): Promise<void> {
 		try {
 			this.players = await firstValueFrom(this.http.get<Player[]>('/api/players'));
-			this.selectedPlayerIds = this.players.slice(0, 10).map((player) => player.id);
+			this.selectedPlayerIds = [];
 			this.changeDetector.detectChanges();
 			if (this.isAdmin) {
 				this.memberAccounts = await firstValueFrom(this.http.get<MemberAccount[]>('/api/users'));
@@ -1198,10 +1184,6 @@ export class App implements OnInit {
 
 	scrollToPlayers(): void {
 		document.getElementById('players')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-	}
-
-	scrollToTeamBuilder(): void {
-		document.getElementById('team-builder')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 	}
 
 	openUserManagement(): void {
