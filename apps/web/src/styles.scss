@@ -210,8 +210,8 @@ table { width: 100%; border-collapse: collapse; white-space: nowrap; }
 .score-team-dot { width: 11px; height: 11px; border-radius: 50%; background: #cbd2c2; }
 .scoring-blacks .score-team-dot { background: #26352d; }
 .scoring-panel .form-field { margin-top: 17px; }
-.scoring-panel select { width: 100%; height: 43px; padding: 0 11px; border: 1px solid #dfe5de; border-radius: 8px; background: #fff; color: #34433a; font-size: 13px; }
-.goal-button { width: 100%; min-height: 47px; margin-top: 12px; border: 0; border-radius: 8px; font-size: 13px; font-weight: 800; }
+.scoring-panel select { width: 100%; height: 46px; padding: 0 11px; border: 1px solid #dfe5de; border-radius: 8px; background: #fff; color: #34433a; font-size: 14px; }
+.goal-button { width: 100%; min-height: 48px; margin-top: 12px; border: 0; border-radius: 8px; font-size: 13px; font-weight: 800; }
 .goal-button:disabled, .finish-match-button:disabled { cursor: wait; opacity: .6; }
 .goal-white-button { background: #e9eedf; color: #435333; }
 .goal-white-button:hover:not(:disabled) { background: #dce7ca; }
@@ -222,8 +222,18 @@ table { width: 100%; border-collapse: collapse; white-space: nowrap; }
 .roster-row:nth-child(odd) { background: #f7f9f6; }
 .roster-row strong { min-width: 25px; padding: 3px 7px; border-radius: 10px; background: #e8eee1; color: #506b34; text-align: center; font-size: 11px; }
 .scoring-blacks .roster-row strong { background: #e7e9e7; color: #34433a; }
+.roster-list .player-goal-button { width: 100%; min-height: 44px; border: 1px solid transparent; background: #fafbf9; font: inherit; text-align: left; cursor: pointer; }
+.scoring-whites .player-goal-button:hover:not(:disabled) { border-color: #dce7c8; background: #f1f5e9; }
+.scoring-blacks .player-goal-button { background: #f4f6f4; }
+.scoring-blacks .player-goal-button:hover:not(:disabled) { border-color: #d8ded9; background: #e9edeb; }
+.player-goal-button:focus-visible { outline: 3px solid #8cae4c; outline-offset: 2px; }
+.player-goal-button:disabled { cursor: wait; opacity: .65; }
 .match-goals-panel { overflow: hidden; }
 .match-goals-heading { min-height: 73px; }
+.match-goal-actions { display: flex; align-items: center; gap: 8px; }
+.undo-goal-button { min-height: 32px; padding: 0 10px; border: 1px solid #f0d1ca; border-radius: 7px; background: #fff2ef; color: #a33f2d; font-size: 11px; font-weight: 700; }
+.undo-goal-button:hover:not(:disabled) { border-color: #dfb0a6; background: #ffe7e2; }
+.undo-goal-button:disabled { cursor: not-allowed; opacity: .45; }
 .finish-match-button { min-height: 38px; padding: 0 13px; border: 1px solid #e2e7e1; border-radius: 8px; background: #fff; color: #657369; font-size: 12px; font-weight: 700; }
 .finish-match-button:hover:not(:disabled) { border-color: #cb8374; color: #a64734; }
 .match-goal-list { display: grid; padding: 0 18px 14px; }
@@ -248,9 +258,11 @@ table { width: 100%; border-collapse: collapse; white-space: nowrap; }
 .match-stats-panel { min-width: 0; padding: 18px; }
 .match-stats-panel h2 { margin-top: 5px; color: #35463a; font: 700 18px Manrope, sans-serif; }
 .leader-list, .history-list { display: grid; margin-top: 13px; }
-.leader-row { display: grid; grid-template-columns: 28px minmax(0, 1fr) auto; align-items: center; gap: 9px; min-height: 40px; border-top: 1px solid #edf0ec; }
+.leader-row { display: grid; grid-template-columns: 28px minmax(0, 1fr) auto; align-items: center; gap: 9px; min-height: 52px; border-top: 1px solid #edf0ec; }
 .leader-rank { color: #8c997e; font-size: 11px; font-weight: 800; }
+.leader-player { display: grid; min-width: 0; gap: 3px; }
 .leader-row strong { overflow: hidden; color: #45554a; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+.leader-player small { overflow: hidden; color: #78877d; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
 .leader-row > span:last-child { color: #627b3b; font-size: 11px; font-weight: 700; }
 .history-row { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 11px; min-height: 43px; border-top: 1px solid #edf0ec; }
 .history-row time { color: #7f8b83; font-size: 11px; }
@@ -360,6 +372,7 @@ table { width: 100%; border-collapse: collapse; white-space: nowrap; }
   .match-scoreboard { grid-template-columns: minmax(0, 1fr) 115px minmax(0, 1fr); padding: 14px; }
   .score-team { min-height: 115px; }
   .score-team strong { font-size: 52px; }
+  .team-skill-averages { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (max-width: 560px) {
   .breadcrumb { font-size: 9px; }
@@ -382,6 +395,8 @@ table { width: 100%; border-collapse: collapse; white-space: nowrap; }
   .match-rosters, .match-stats-grid { grid-template-columns: 1fr; }
   .match-page-heading h1 { font-size: 28px; }
   .match-page-heading p { max-width: 270px; font-size: 12px; }
+  .match-page-heading { align-items: center; }
+  .match-live-badge { flex: 0 0 auto; padding: 8px 10px; }
   .match-scoreboard { grid-template-columns: minmax(0, 1fr) 64px minmax(0, 1fr); gap: 7px; padding: 10px; }
   .score-team { min-height: 100px; }
   .score-team-name { font-size: 10px; letter-spacing: 1px; }
@@ -498,4 +513,79 @@ h2 { font-size: 20px; }
   .builder-controls .build-button span { max-width: 95px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .whatsapp-share { padding: 14px; }
   .whatsapp-message { padding: 11px; font-size: 12px; }
+  .match-page { gap: 14px; }
+  .match-scoreboard { grid-template-columns: minmax(0, 1fr) 58px minmax(0, 1fr); gap: 5px; padding: 8px; }
+  .score-team { min-height: 96px; }
+  .score-team strong { font-size: 38px; }
+  .score-status strong { max-width: 60px; line-height: 1.25; }
+  .match-goals-heading { gap: 10px; }
+  .finish-match-button { min-height: 42px; }
+  .match-goal-list { padding-right: 12px; padding-left: 12px; }
+  .scoring-panel select { font-size: 16px; }
+  .team-skill-averages { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 560px) {
+  body { min-width: 320px; }
+  .app-shell { min-height: 100svh; }
+  .sidebar {
+    position: fixed;
+    inset: auto 0 0;
+    width: 100%;
+    height: calc(64px + env(safe-area-inset-bottom));
+    flex-direction: row;
+    align-items: stretch;
+    padding: 3px 8px max(3px, env(safe-area-inset-bottom));
+    border-top: 1px solid #34463c;
+  }
+  .sidebar .brand, .side-label, .league-card, .profile-copy, .profile-avatar { display: none; }
+  .sidebar-bottom { display: flex; flex: 0 0 auto; align-items: center; margin: 0; }
+  .profile-button { width: auto; margin: 0; padding: 0; border: 0; }
+  .sign-out-button { display: grid; width: 44px; height: 44px; margin: 0; padding: 0; place-items: center; font-size: 18px; }
+  .navigation {
+    width: min(100%, 520px);
+    height: 100%;
+    grid-auto-flow: column;
+    grid-auto-columns: 1fr;
+    gap: 2px;
+    margin: 0 auto;
+  }
+  .nav-item, .nav-item.active, .nav-item:not(.active) {
+    min-width: 0;
+    min-height: 52px;
+    height: 100%;
+    flex-direction: column;
+    justify-content: center;
+    gap: 3px;
+    padding: 4px 2px;
+    font-size: 9px;
+    line-height: 1.15;
+    text-align: center;
+  }
+  .nav-item.active { background: #263b30; color: #c8f169; }
+  .nav-icon { width: auto; font-size: 18px; line-height: 1; }
+  .nav-count { display: none; }
+  .main-content { width: 100%; margin-left: 0; }
+  .login-brand { color: #1d3125; }
+  .login-brand > span:last-child { font-size: 20px; }
+  .topbar { position: sticky; top: 0; z-index: 2; height: 56px; padding: 0 14px; }
+  .week-chip { display: none; }
+  .breadcrumb { font-size: 11px; }
+  .content { padding: 20px 14px calc(82px + env(safe-area-inset-bottom)); }
+  .login-card { padding: 24px 20px; }
+  .form-field input, .form-field select { font-size: 16px; }
+  .add-button, .row-menu, .row-delete, .table-footer button { min-width: 44px; min-height: 44px; }
+  .team-select-checkbox { width: 20px; height: 20px; }
+  .select-wrap select { min-height: 44px; }
+  .build-button { min-height: 44px; }
+  .table-wrap { overscroll-behavior-x: contain; scrollbar-width: thin; }
+  .match-rosters { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .scoring-panel { padding: 12px 9px; }
+  .scoring-panel header { gap: 5px; }
+  .scoring-panel header h2 { font-size: 14px; }
+  .scoring-panel header small { font-size: 9px; }
+  .roster-list .player-goal-button { padding: 7px; }
+  .player-goal-button > span { overflow: hidden; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+  .player-goal-button strong { min-width: 21px; padding: 3px 5px; font-size: 10px; }
+  .match-goal-actions { gap: 6px; }
 }

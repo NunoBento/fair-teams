@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   Post,
@@ -48,6 +49,11 @@ export class MatchesController {
     @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.matchesService.addGoal(id, dto, user);
+  }
+
+  @Delete(':id/goals/latest')
+  undoLatestGoal(@Param('id') id: string) {
+    return this.matchesService.undoLatestGoal(id);
   }
 
   @Post(':id/finish')

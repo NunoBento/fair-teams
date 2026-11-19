@@ -50,6 +50,9 @@ interface GoalLeader {
 	playerId: string;
 	playerName: string;
 	goals: number;
+	gamesPlayed: number;
+	wins: number;
+	losses: number;
 }
 
 interface SessionUser {
@@ -98,12 +101,13 @@ interface MemberAccount {
         </a>
         <div class="side-label">Workspace</div>
         <nav class="navigation" aria-label="Main navigation">
-          <button class="nav-item" [class.active]="currentPage === 'dashboard'" (click)="showDashboard()"><span class="nav-icon">◫</span> Dashboard</button>
-          <button class="nav-item" [class.active]="currentPage === 'match'" (click)="showMatchPage()"><span class="nav-icon">⚽</span> Live match</button>
-          <button class="nav-item" (click)="goToPlayers()"><span class="nav-icon">◎</span> Players <span class="nav-count">{{ players.length }}</span></button>
-          <button class="nav-item" (click)="goToTeamBuilder()"><span class="nav-icon">⌘</span> Team builder</button>
+          <button class="nav-item" title="Dashboard" aria-label="Dashboard" [class.active]="currentPage === 'dashboard'" (click)="showDashboard()"><span class="nav-icon">◫</span> Dashboard</button>
+          <button class="nav-item" title="Live match" aria-label="Live match" [class.active]="currentPage === 'match'" (click)="showMatchPage()"><span class="nav-icon">⚽</span> Live match</button>
+          <button class="nav-item" title="Stats and match history" aria-label="Stats and match history" [class.active]="currentPage === 'stats'" (click)="showStatsPage()"><span class="nav-icon">▤</span> Stats</button>
+          <button class="nav-item" title="Players" aria-label="Players" (click)="goToPlayers()"><span class="nav-icon">◎</span> Players <span class="nav-count">{{ players.length }}</span></button>
+          <button class="nav-item" title="Team builder" aria-label="Team builder" (click)="goToTeamBuilder()"><span class="nav-icon">⌘</span> Team builder</button>
           @if (isAdmin) {
-            <button class="nav-item" (click)="openUserManagement()"><span class="nav-icon">♙</span> Members <span class="nav-count">{{ memberAccounts.length }}</span></button>
+            <button class="nav-item" title="Members" aria-label="Members" (click)="openUserManagement()"><span class="nav-icon">♙</span> Members <span class="nav-count">{{ memberAccounts.length }}</span></button>
           }
         </nav>
         <div class="sidebar-bottom">
@@ -122,7 +126,7 @@ interface MemberAccount {
 
       <main class="main-content">
         <header class="topbar">
-          <div class="breadcrumb">Thursday league <span>/</span> <strong>{{ currentPage === 'match' ? 'Live match' : 'Overview' }}</strong></div>
+          <div class="breadcrumb">Thursday league <span>/</span> <strong>{{ currentPage === 'match' ? 'Live match' : currentPage === 'stats' ? 'Stats & history' : 'Overview' }}</strong></div>
           <div class="top-actions">
             <div class="week-chip"><span class="live-dot"></span> Weekly match <span class="chip-divider"></span> Thu · 21:00</div>
             <span class="top-avatar">{{ initials(sessionUser.username) }}</span>
@@ -284,13 +288,13 @@ interface MemberAccount {
           </section>
 
           <footer class="page-footer"><span>fiveaside<span class="brand-period">.</span> <span>Built for the love of the game.</span></span><span>Thursday league <i>·</i> Weekly at 21:00</span></footer>
-          } @else {
+          } @else if (currentPage === 'match') {
           <section class="match-page">
             <header class="match-page-heading">
               <div>
                 <div class="section-kicker">THURSDAY LEAGUE · LIVE SCOREKEEPER</div>
                 <h1>Brancos <span>vs</span> Pretos</h1>
-                <p>Track every goal and choose who scored. Goals save automatically.</p>
+                <p>Tap a player to add their goal. Goals save automatically.</p>
               </div>
               @if (activeMatch) { <span class="match-live-badge"><i></i> LIVE</span> }
             </header>
@@ -320,36 +324,31 @@ interface MemberAccount {
               <section class="match-rosters" aria-label="Match teams and scorers">
                 <article class="scoring-panel scoring-whites">
                   <header><span class="score-team-dot"></span><h2>Brancos</h2><small>{{ activeMatch.teams.whites.players.length }} players</small></header>
-                  <label class="form-field">Who scored?
-                    <select name="whiteScorer" [(ngModel)]="selectedWhiteScorerId">
-                      @for (player of activeMatch.teams.whites.players; track player.playerId) { <option [value]="player.playerId">{{ player.playerName }}</option> }
-                    </select>
-                  </label>
-                  <button class="goal-button goal-white-button" type="button" (click)="addMatchGoal('whites')" [disabled]="matchSaving || !activeMatch.teams.whites.players.length">＋ Add Brancos goal</button>
                   <div class="roster-list">
                     @for (player of activeMatch.teams.whites.players; track player.playerId) {
-                      <div class="roster-row"><span>{{ player.playerName }}</span><strong>{{ playerGoalCount(activeMatch, player.playerId) }}</strong></div>
+                      <button class="roster-row player-goal-button" type="button" (click)="addMatchGoal('whites', player.playerId)" [disabled]="matchSaving" [attr.aria-label]="'Add goal for ' + player.playerName">
+                        <span>{{ player.playerName }}</span><strong>{{ playerGoalCount(activeMatch, player.playerId) }}</strong>
+                      </button>
                     }
                   </div>
                 </article>
                 <article class="scoring-panel scoring-blacks">
                   <header><span class="score-team-dot"></span><h2>Pretos</h2><small>{{ activeMatch.teams.blacks.players.length }} players</small></header>
-                  <label class="form-field">Who scored?
-                    <select name="blackScorer" [(ngModel)]="selectedBlackScorerId">
-                      @for (player of activeMatch.teams.blacks.players; track player.playerId) { <option [value]="player.playerId">{{ player.playerName }}</option> }
-                    </select>
-                  </label>
-                  <button class="goal-button goal-black-button" type="button" (click)="addMatchGoal('blacks')" [disabled]="matchSaving || !activeMatch.teams.blacks.players.length">＋ Add Pretos goal</button>
                   <div class="roster-list">
                     @for (player of activeMatch.teams.blacks.players; track player.playerId) {
-                      <div class="roster-row"><span>{{ player.playerName }}</span><strong>{{ playerGoalCount(activeMatch, player.playerId) }}</strong></div>
+                      <button class="roster-row player-goal-button" type="button" (click)="addMatchGoal('blacks', player.playerId)" [disabled]="matchSaving" [attr.aria-label]="'Add goal for ' + player.playerName">
+                        <span>{{ player.playerName }}</span><strong>{{ playerGoalCount(activeMatch, player.playerId) }}</strong>
+                      </button>
                     }
                   </div>
                 </article>
               </section>
               <section class="panel match-goals-panel">
                 <div class="panel-heading match-goals-heading"><div><div class="section-kicker">MATCH TIMELINE</div><h2>Goals <span class="heading-count">{{ activeMatch.goals.length }}</span></h2></div>
-                  <button class="finish-match-button" type="button" (click)="finishMatch()" [disabled]="matchSaving">{{ matchSaving ? 'Saving…' : 'Finish game' }}</button>
+                  <div class="match-goal-actions">
+                    <button class="undo-goal-button" type="button" (click)="undoLastGoal()" [disabled]="matchSaving || !activeMatch.goals.length" [attr.aria-label]="'Undo last goal' + (activeMatch.goals.length ? ' by ' + activeMatch.goals[activeMatch.goals.length - 1].playerName : '')" title="Undo the most recent goal">Undo</button>
+                    <button class="finish-match-button" type="button" (click)="finishMatch()" [disabled]="matchSaving">{{ matchSaving ? 'Saving…' : 'Finish game' }}</button>
+                  </div>
                 </div>
                 <div class="match-goal-list">
                   @for (goal of activeMatch.goals; track goal.id; let i = $index) {
@@ -382,12 +381,32 @@ interface MemberAccount {
                 }
               </section>
             }
+          </section>
+          } @else {
+          <section class="match-page">
+            <header class="match-page-heading">
+              <div>
+                <h1>Stats &amp; history</h1>
+                <p>All-time goal totals and recent league results.</p>
+              </div>
+            </header>
+            @if (statsError) { <div class="error-banner" role="alert">{{ statsError }}</div> }
+            @if (statsLoading) {
+              <div class="panel match-empty-state" role="status">Loading stats and match history…</div>
+            } @else {
             <section class="match-stats-grid">
               <article class="panel match-stats-panel">
                 <div class="section-kicker">ALL-TIME STATS</div><h2>Goals by player</h2>
                 <div class="leader-list">
                   @for (leader of goalLeaders; track leader.playerId; let i = $index) {
-                    <div class="leader-row"><span class="leader-rank">{{ i + 1 }}</span><strong>{{ leader.playerName }}</strong><span>{{ leader.goals }} {{ leader.goals === 1 ? 'goal' : 'goals' }}</span></div>
+                    <div class="leader-row">
+                      <span class="leader-rank">{{ i + 1 }}</span>
+                      <div class="leader-player">
+                        <strong>{{ leader.playerName }}</strong>
+                        <small>{{ leader.gamesPlayed }} played · {{ leader.wins }} {{ leader.wins === 1 ? 'win' : 'wins' }} · {{ leader.losses }} {{ leader.losses === 1 ? 'loss' : 'losses' }}</small>
+                      </div>
+                      <span>{{ leader.goals }} {{ leader.goals === 1 ? 'goal' : 'goals' }}</span>
+                    </div>
                   } @empty { <p class="match-muted">Player goal totals will appear here.</p> }
                 </div>
               </article>
@@ -404,6 +423,7 @@ interface MemberAccount {
                 </div>
               </article>
             </section>
+            }
           </section>
           }
         </div>
@@ -550,16 +570,16 @@ export class App implements OnInit {
 	swapPlayerId: string | null = null;
 	teamsMessageCopied = false;
 	teamsMessageError = '';
-	currentPage: 'dashboard' | 'match' = 'dashboard';
+	currentPage: 'dashboard' | 'match' | 'stats' = 'dashboard';
 	activeMatch: GameMatch | null = null;
 	recentMatches: GameMatch[] = [];
 	goalLeaders: GoalLeader[] = [];
 	matchLoading = false;
+	statsLoading = false;
 	matchSaving = false;
 	matchError = '';
+	statsError = '';
 	matchNotice = '';
-	selectedWhiteScorerId = '';
-	selectedBlackScorerId = '';
 	private matchRefreshTimer: ReturnType<typeof setInterval> | null = null;
 
 	radarAxisPoint(index: number): { x: number; y: number } {
@@ -630,6 +650,12 @@ export class App implements OnInit {
 		}, 5000);
 	}
 
+	showStatsPage(): void {
+		this.currentPage = 'stats';
+		this.clearMatchRefresh();
+		void this.loadStatsPage();
+	}
+
 	private clearMatchRefresh(): void {
 		if (this.matchRefreshTimer !== null) {
 			clearInterval(this.matchRefreshTimer);
@@ -641,15 +667,7 @@ export class App implements OnInit {
 		this.matchLoading = true;
 		this.matchError = '';
 		try {
-			const [active, recent, leaders] = await Promise.all([
-				firstValueFrom(this.http.get<GameMatch | null>('/api/matches/active')),
-				firstValueFrom(this.http.get<GameMatch[]>('/api/matches/recent')),
-				firstValueFrom(this.http.get<GoalLeader[]>('/api/matches/goal-leaders')),
-			]);
-			this.activeMatch = active;
-			this.recentMatches = recent;
-			this.goalLeaders = leaders;
-			this.syncSelectedScorers(active);
+			this.activeMatch = await firstValueFrom(this.http.get<GameMatch | null>('/api/matches/active'));
 		} catch (error) {
 			this.matchError = this.matchRequestError(error);
 		} finally {
@@ -658,32 +676,28 @@ export class App implements OnInit {
 		}
 	}
 
-	private async refreshActiveMatch(): Promise<void> {
-		if (this.currentPage !== 'match' || this.matchSaving || this.matchLoading) return;
+	private async loadStatsPage(): Promise<void> {
+		this.statsLoading = true;
+		this.statsError = '';
 		try {
-			const previousMatchId = this.activeMatch?.id ?? null;
-			const active = await firstValueFrom(this.http.get<GameMatch | null>('/api/matches/active'));
-			this.activeMatch = active;
-			this.syncSelectedScorers(active);
-			if (previousMatchId && !active) await this.refreshMatchRecords();
-			this.changeDetector.detectChanges();
+			await this.refreshMatchRecords();
 		} catch (error) {
-			this.matchError = this.matchRequestError(error);
+			this.statsError = this.matchRequestError(error);
+		} finally {
+			this.statsLoading = false;
 			this.changeDetector.detectChanges();
 		}
 	}
 
-	private syncSelectedScorers(match: GameMatch | null): void {
-		if (!match) {
-			this.selectedWhiteScorerId = '';
-			this.selectedBlackScorerId = '';
-			return;
-		}
-		if (!match.teams.whites.players.some((player) => player.playerId === this.selectedWhiteScorerId)) {
-			this.selectedWhiteScorerId = match.teams.whites.players[0]?.playerId ?? '';
-		}
-		if (!match.teams.blacks.players.some((player) => player.playerId === this.selectedBlackScorerId)) {
-			this.selectedBlackScorerId = match.teams.blacks.players[0]?.playerId ?? '';
+	private async refreshActiveMatch(): Promise<void> {
+		if (this.currentPage !== 'match' || this.matchSaving || this.matchLoading) return;
+		try {
+			const active = await firstValueFrom(this.http.get<GameMatch | null>('/api/matches/active'));
+			this.activeMatch = active;
+			this.changeDetector.detectChanges();
+		} catch (error) {
+			this.matchError = this.matchRequestError(error);
+			this.changeDetector.detectChanges();
 		}
 	}
 
@@ -706,7 +720,6 @@ export class App implements OnInit {
 				whites: this.teams[0].players.map((player) => player.id),
 				blacks: this.teams[1].players.map((player) => player.id),
 			}));
-			this.syncSelectedScorers(this.activeMatch);
 		} catch (error) {
 			this.matchError = this.matchRequestError(error);
 		} finally {
@@ -715,13 +728,8 @@ export class App implements OnInit {
 		}
 	}
 
-	async addMatchGoal(team: MatchTeam): Promise<void> {
+	async addMatchGoal(team: MatchTeam, playerId: string): Promise<void> {
 		if (!this.activeMatch || this.matchSaving) return;
-		const playerId = team === 'whites' ? this.selectedWhiteScorerId : this.selectedBlackScorerId;
-		if (!playerId) {
-			this.matchError = 'Select the player who scored before adding the goal.';
-			return;
-		}
 		this.matchSaving = true;
 		this.matchError = '';
 		try {
@@ -729,6 +737,22 @@ export class App implements OnInit {
 				`/api/matches/${this.activeMatch.id}/goals`,
 				{ team, playerId },
 			));
+		} catch (error) {
+			this.matchError = this.matchRequestError(error);
+		} finally {
+			this.matchSaving = false;
+			this.changeDetector.detectChanges();
+		}
+	}
+
+	async undoLastGoal(): Promise<void> {
+		if (!this.activeMatch?.goals.length || this.matchSaving) return;
+		this.matchSaving = true;
+		this.matchError = '';
+		try {
+			this.activeMatch = await firstValueFrom(
+				this.http.delete<GameMatch>(`/api/matches/${this.activeMatch.id}/goals/latest`),
+			);
 		} catch (error) {
 			this.matchError = this.matchRequestError(error);
 		} finally {
@@ -745,10 +769,7 @@ export class App implements OnInit {
 		try {
 			await firstValueFrom(this.http.post<GameMatch>(`/api/matches/${this.activeMatch.id}/finish`, {}));
 			this.activeMatch = null;
-			this.selectedWhiteScorerId = '';
-			this.selectedBlackScorerId = '';
 			this.matchNotice = 'Game finished and saved. Player goal totals have been updated.';
-			await this.refreshMatchRecords();
 		} catch (error) {
 			this.matchError = this.matchRequestError(error);
 		} finally {

@@ -53,10 +53,15 @@ export class MatchesService {
     return matches.map((match) => this.toView(match));
   }
 
-  async findGoalLeaders(): Promise<
-    Array<{ playerId: string; playerName: string; goals: number }>
-  > {
-    const [leaders, players] = await Promise.all([
+  async findGoalLeaders(): Promise<Array<{
+    playerId: string;
+    playerName: string;
+    goals: number;
+    gamesPlayed: number;
+    wins: number;
+    losses: number;
+  }>> {
+    const [leaders, players, completedMatches] = await Promise.all([
       this.matchModel
         .aggregate([
           { $match: { status: 'completed' } },
@@ -72,6 +77,7 @@ export class MatchesService {
         ])
         .exec(),
       this.playersService.findAll(),
+      this.matchModel.find({ status: 'completed' }).select('whites blacks goals').exec(),
     ]);
     const goalsByPlayer = new Map<string, { playerName: string; goals: number }>(
       leaders.map((leader) => [
@@ -84,11 +90,49 @@ export class MatchesService {
         goalsByPlayer.set(player.id, { playerName: player.name, goals: 0 });
       }
     }
-    return [...goalsByPlayer].map(([playerId, leader]) => ({
+    const recordsByPlayer = new Map<string, {
+      playerName: string;
+      gamesPlayed: number;
+      wins: number;
+      losses: number;
+    }>();
+    const recordTeam = (team: MatchTeam, roster: GameMatch['whites']['players'], whiteScore: number, blackScore: number) => {
+      for (const player of roster) {
+        const record = recordsByPlayer.get(player.playerId) ?? {
+          playerName: player.playerName,
+          gamesPlayed: 0,
+          wins: 0,
+          losses: 0,
+        };
+        record.gamesPlayed += 1;
+        const won = team === 'whites' ? whiteScore > blackScore : blackScore > whiteScore;
+        const lost = team === 'whites' ? whiteScore < blackScore : blackScore < whiteScore;
+        if (won) record.wins += 1;
+        if (lost) record.losses += 1;
+        recordsByPlayer.set(player.playerId, record);
+        if (!goalsByPlayer.has(player.playerId)) {
+          goalsByPlayer.set(player.playerId, { playerName: player.playerName, goals: 0 });
+        }
+      }
+    };
+    for (const match of completedMatches) {
+      const whiteScore = match.goals.filter((goal) => goal.team === 'whites').length;
+      const blackScore = match.goals.length - whiteScore;
+      recordTeam('whites', match.whites.players, whiteScore, blackScore);
+      recordTeam('blacks', match.blacks.players, whiteScore, blackScore);
+    }
+
+    return [...goalsByPlayer].map(([playerId, leader]) => {
+      const record = recordsByPlayer.get(playerId);
+      return {
       playerId,
-      playerName: leader.playerName,
+      playerName: record?.playerName ?? leader.playerName,
       goals: leader.goals,
-    })).sort((a, b) => b.goals - a.goals || a.playerName.localeCompare(b.playerName));
+      gamesPlayed: record?.gamesPlayed ?? 0,
+      wins: record?.wins ?? 0,
+      losses: record?.losses ?? 0,
+      };
+    }).sort((a, b) => b.goals - a.goals || a.playerName.localeCompare(b.playerName));
   }
 
   async create(dto: CreateMatchDto, user: AuthenticatedUser): Promise<MatchView> {
@@ -183,6 +227,37 @@ export class MatchesService {
     const updated = await this.matchModel.findById(id).exec();
     if (!updated) throw new NotFoundException('Game not found.');
     return this.toView(updated);
+  }
+
+  async undoLatestGoal(id: string): Promise<MatchView> {
+    const match = await this.matchModel.findById(id).exec();
+    if (!match) throw new NotFoundException('Game not found.');
+    if (match.status !== 'live') {
+      throw new ConflictException('This game has already finished.');
+    }
+    const lastGoal = match.goals[match.goals.length - 1];
+    if (!lastGoal) throw new BadRequestException('There are no goals to undo.');
+
+    const updated = await this.matchModel
+      .findOneAndUpdate(
+        {
+          _id: id,
+          status: 'live',
+          'goals._id': lastGoal._id,
+          goals: { $size: match.goals.length },
+        },
+        { $pull: { goals: { _id: lastGoal._id } } },
+        { new: true },
+      )
+      .exec();
+    if (updated) return this.toView(updated);
+
+    const current = await this.matchModel.findById(id).exec();
+    if (!current) throw new NotFoundException('Game not found.');
+    if (current.status !== 'live') {
+      throw new ConflictException('This game has already finished.');
+    }
+    throw new ConflictException('The latest goal changed. Refresh and try again.');
   }
 
   async finish(id: string): Promise<MatchView> {
