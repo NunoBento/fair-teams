@@ -110,8 +110,10 @@ table { width: 100%; border-collapse: collapse; white-space: nowrap; }
 .review-count { color: #49584e; font-weight: 600; }
 .review-count span { color: #a2aaa4; font-weight: 400; }
 .row-actions { white-space: nowrap; }
-.row-menu, .row-delete { padding: 3px 6px; border: 0; border-radius: 4px; background: none; color: #789344; font-size: 8px; }
+.row-menu, .row-edit, .row-delete { padding: 3px 6px; border: 0; border-radius: 4px; background: none; color: #789344; font-size: 8px; }
 .row-menu:hover { background: #f1f5e9; }
+.row-edit { margin-left: 2px; color: #516d38; }
+.row-edit:hover { background: #f1f5e9; }
 .row-delete { margin-left: 2px; color: #b66b59; font-size: 12px; }
 .row-delete:hover { background: #fff0ec; }
 .empty-row { height: 75px !important; color: #8c9890 !important; text-align: center; }
@@ -248,6 +250,9 @@ table { width: 100%; border-collapse: collapse; white-space: nowrap; }
 .undo-goal-button { min-height: 32px; padding: 0 10px; border: 1px solid #f0d1ca; border-radius: 7px; background: #fff2ef; color: #a33f2d; font-size: 11px; font-weight: 700; }
 .undo-goal-button:hover:not(:disabled) { border-color: #dfb0a6; background: #ffe7e2; }
 .undo-goal-button:disabled { cursor: not-allowed; opacity: .45; }
+.cancel-match-button { min-height: 38px; padding: 0 11px; border: 1px solid #f0d1ca; border-radius: 8px; background: #fff2ef; color: #a33f2d; font-size: 11px; font-weight: 700; }
+.cancel-match-button:hover:not(:disabled) { border-color: #dfb0a6; background: #ffe7e2; }
+.cancel-match-button:disabled { cursor: wait; opacity: .6; }
 .finish-match-button { min-height: 38px; padding: 0 13px; border: 1px solid #e2e7e1; border-radius: 8px; background: #fff; color: #657369; font-size: 12px; font-weight: 700; }
 .finish-match-button:hover:not(:disabled) { border-color: #cb8374; color: #a64734; }
 .match-goal-list { display: grid; padding: 0 18px 14px; }
@@ -305,6 +310,8 @@ table { width: 100%; border-collapse: collapse; white-space: nowrap; }
 .form-field { display: grid; gap: 6px; margin-top: 17px; color: #657269; font-size: 10px; font-weight: 600; }
 .form-field input, .form-field select { height: 37px; padding: 0 10px; border: 1px solid #e2e8e2; border-radius: 6px; color: #34433a; font-size: 11px; }
 .modal-submit { width: 100%; height: 38px; margin-top: 20px; }
+.edit-player-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 20px; }
+.edit-player-actions .build-button { min-height: 40px; padding: 0 14px; }
 .rating-modal { width: min(100%, 430px); }
 .rating-radar-chart { width: 220px; max-width: 100%; margin: 16px auto 4px; }
 .rating-fields { display: grid; gap: 12px; margin-top: 18px; }
@@ -330,9 +337,16 @@ table { width: 100%; border-collapse: collapse; white-space: nowrap; }
 .members-list-heading span { color: #98a39b; font-weight: 400; }
 .member-row { display: flex; align-items: center; gap: 8px; padding: 8px 0; border-bottom: 1px solid #f0f2f0; }
 .member-avatar { width: 27px; height: 27px; background: #e8eedb; color: #687f40; }
-.member-info { display: grid; flex: 1; gap: 3px; }
+.member-info { display: grid; min-width: 0; flex: 1; gap: 3px; }
 .member-info strong { color: #435149; font-size: 10px; }
 .member-info small { color: #9aa49c; font-size: 8px; }
+.member-role { flex: 0 0 auto; padding: 4px 6px; border-radius: 5px; background: #f0f2ef; color: #69766d; font-size: 8px; font-weight: 700; }
+.member-role-admin { background: #edf3df; color: #536d32; }
+.role-toggle-button { flex: 0 0 auto; padding: 5px 7px; border: 1px solid #dce7c8; border-radius: 5px; background: #f6f9ef; color: #5d7638; font-size: 8px; font-weight: 700; }
+.role-toggle-button:hover:not(:disabled) { border-color: #b7c995; background: #eef4e2; }
+.role-toggle-button:disabled { cursor: wait; opacity: .6; }
+.role-demote-button { border-color: #f0ded9; background: #fff7f5; color: #a45b49; }
+.role-demote-button:hover:not(:disabled) { border-color: #dfb0a6; background: #fff0ec; }
 .remove-member-button { padding: 4px 7px; border: 1px solid #f0ded9; border-radius: 5px; background: #fff; color: #ad6452; font-size: 8px; }
 .remove-member-button:hover { background: #fff4f1; }
 .no-members { padding: 12px 0; color: #98a39b; font-size: 10px; }
@@ -464,7 +478,7 @@ h2 { font-size: 20px; }
 .rating-value, .review-count { font-size: 13px; }
 .rating-indicator { display: inline-grid; min-width: 32px; height: 27px; padding: 0 5px; place-items: center; border-radius: 7px; background: hsl(var(--rating-hue), 70%, 91%); color: hsl(var(--rating-hue), 45%, 30%); }
 .review-count span { font-size: 11px; }
-.row-menu, .row-delete { padding: 6px 9px; font-size: 12px; }
+.row-menu, .row-edit, .row-delete { padding: 6px 9px; font-size: 12px; }
 .table-footer { height: 48px; font-size: 11px; }
 .table-footer button { font-size: 11px; }
 .skills-panel { padding: 20px; }
@@ -526,10 +540,10 @@ h2 { font-size: 20px; }
   .match-page { gap: 14px; }
   .match-scoreboard { grid-template-columns: minmax(0, 1fr) 58px minmax(0, 1fr); gap: 5px; padding: 8px; }
   .score-team { min-height: 96px; }
-  .score-team strong { font-size: 38px; }
+  .score-team strong { font-size: 56px; }
   .score-status strong { max-width: 60px; line-height: 1.25; }
   .match-goals-heading { gap: 10px; }
-  .finish-match-button { min-height: 42px; }
+  .cancel-match-button, .finish-match-button { min-height: 42px; }
   .match-goal-list { padding-right: 12px; padding-left: 12px; }
   .scoring-panel select { font-size: 16px; }
   .team-skill-averages { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -538,6 +552,9 @@ h2 { font-size: 20px; }
 @media (max-width: 560px) {
   body { min-width: 320px; }
   .app-shell { min-height: 100svh; }
+  .create-user-form { grid-template-columns: minmax(0, 1fr); }
+  .create-user-form .form-field { min-width: 0; }
+  .create-user-form .form-field input, .create-user-form .form-field select { width: 100%; min-width: 0; }
   .sidebar {
     position: fixed;
     inset: auto 0 0;
@@ -584,7 +601,7 @@ h2 { font-size: 20px; }
   .content { padding: 20px 14px calc(82px + env(safe-area-inset-bottom)); }
   .login-card { padding: 24px 20px; }
   .form-field input, .form-field select { font-size: 16px; }
-  .add-button, .row-menu, .row-delete, .table-footer button { min-width: 44px; min-height: 44px; }
+  .add-button, .row-menu, .row-edit, .row-delete, .table-footer button { min-width: 44px; min-height: 44px; }
   .team-select-checkbox { width: 20px; height: 20px; }
   .select-wrap select { min-height: 44px; }
   .build-button { min-height: 44px; }
@@ -595,7 +612,8 @@ h2 { font-size: 20px; }
   .scoring-panel header h2 { font-size: 14px; }
   .scoring-panel header small { font-size: 9px; }
   .roster-list .player-goal-button { padding: 7px; }
-  .player-goal-button > span { overflow: hidden; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
-  .player-goal-button strong { min-width: 21px; padding: 3px 5px; font-size: 10px; }
+  .roster-list .player-goal-button { justify-content: flex-start; gap: 8px; }
+  .player-goal-button > span { display: block; width: 0; min-width: 0; flex: 1 1 0; overflow: hidden; font-size: 14px; text-overflow: ellipsis; white-space: nowrap; }
+  .player-goal-button strong { min-width: 21px; flex: 0 0 auto; padding: 3px 5px; font-size: 10px; }
   .match-goal-actions { gap: 6px; }
 }

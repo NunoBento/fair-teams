@@ -85,6 +85,7 @@ export class MatchesService {
         { playerName: leader.playerName, goals: leader.goals },
       ]),
     );
+    const currentNamesById = new Map(players.map((player) => [player.id, player.name]));
     for (const player of players) {
       if (!goalsByPlayer.has(player.id)) {
         goalsByPlayer.set(player.id, { playerName: player.name, goals: 0 });
@@ -126,7 +127,7 @@ export class MatchesService {
       const record = recordsByPlayer.get(playerId);
       return {
       playerId,
-      playerName: record?.playerName ?? leader.playerName,
+      playerName: currentNamesById.get(playerId) ?? record?.playerName ?? leader.playerName,
       goals: leader.goals,
       gamesPlayed: record?.gamesPlayed ?? 0,
       wins: record?.wins ?? 0,
@@ -273,6 +274,17 @@ export class MatchesService {
     const existing = await this.matchModel.findById(id).exec();
     if (!existing) throw new NotFoundException('Game not found.');
     throw new ConflictException('This game has already finished.');
+  }
+
+  async cancel(id: string): Promise<void> {
+    const deleted = await this.matchModel
+      .findOneAndDelete({ _id: id, status: 'live' })
+      .exec();
+    if (deleted) return;
+
+    const existing = await this.matchModel.findById(id).exec();
+    if (!existing) throw new NotFoundException('Game not found.');
+    throw new ConflictException('Only a live game can be canceled.');
   }
 
   private toView(match: GameMatchDocument): MatchView {

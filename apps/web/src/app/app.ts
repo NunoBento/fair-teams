@@ -65,7 +65,7 @@ interface SessionUser {
 interface MemberAccount {
 	id: string;
 	username: string;
-	role: 'member';
+	role: 'admin' | 'member';
 	playerId?: string;
 }
 
@@ -178,7 +178,10 @@ interface MemberAccount {
                         <td><span class="review-count">{{ player.ratingCount }} <span>reviews</span></span></td>
                         <td class="row-actions">
                           <button class="row-menu" [disabled]="isOwnPlayer(player)" [attr.aria-label]="isOwnPlayer(player) ? 'Your player profile' : 'Rate ' + player.name" (click)="openRating(player)">{{ isOwnPlayer(player) ? 'You' : 'Rate' }}</button>
-                          @if (isAdmin) { <button class="row-delete" [attr.aria-label]="'Delete ' + player.name" (click)="openDelete(player)">⌫</button> }
+                          @if (isAdmin) {
+                            <button class="row-edit" [attr.aria-label]="'Edit ' + player.name" (click)="openEditPlayer(player)">Edit</button>
+                            <button class="row-delete" [attr.aria-label]="'Delete ' + player.name" (click)="openDelete(player)">⌫</button>
+                          }
                         </td>
                       </tr>
                     } @empty {
@@ -210,8 +213,6 @@ interface MemberAccount {
             <header class="match-page-heading">
               <div>
                 <div class="section-kicker">THURSDAY LEAGUE · LIVE SCOREKEEPER</div>
-                <h1>Brancos <span>vs</span> Pretos</h1>
-                <p>Tap a player to add their goal. Goals save automatically.</p>
               </div>
               @if (activeMatch) { <span class="match-live-badge"><i></i> LIVE</span> }
             </header>
@@ -264,6 +265,7 @@ interface MemberAccount {
                 <div class="panel-heading match-goals-heading"><div><div class="section-kicker">MATCH TIMELINE</div><h2>Goals <span class="heading-count">{{ activeMatch.goals.length }}</span></h2></div>
                   <div class="match-goal-actions">
                     <button class="undo-goal-button" type="button" (click)="undoLastGoal()" [disabled]="matchSaving || !activeMatch.goals.length" [attr.aria-label]="'Undo last goal' + (activeMatch.goals.length ? ' by ' + activeMatch.goals[activeMatch.goals.length - 1].playerName : '')" title="Undo the most recent goal">Undo</button>
+                    <button class="cancel-match-button" type="button" (click)="cancelMatch()" [disabled]="matchSaving">Cancel game</button>
                     <button class="finish-match-button" type="button" (click)="finishMatch()" [disabled]="matchSaving">{{ matchSaving ? 'Saving…' : 'Finish game' }}</button>
                   </div>
                 </div>
@@ -424,6 +426,22 @@ interface MemberAccount {
       </div>
     }
 
+    @if (modal === 'edit-player' && selectedPlayer) {
+      <div class="modal-backdrop" (click)="closeModal()">
+        <section class="modal-card" role="dialog" aria-modal="true" aria-labelledby="edit-player-title" (click)="$event.stopPropagation()">
+          <button class="modal-close" aria-label="Close" (click)="closeModal()" [disabled]="savingPlayerName">×</button>
+          <div class="section-kicker">PLAYER ROSTER</div><h2 id="edit-player-title">Edit player name</h2>
+          <p>Update the name shown across the league.</p>
+          <label class="form-field" for="edit-player-name">Player name<input id="edit-player-name" name="editPlayerName" [(ngModel)]="editingPlayerName" required minlength="2" maxlength="60" /></label>
+          @if (playerNameError) { <div class="error-banner modal-error" role="alert">{{ playerNameError }}</div> }
+          <div class="edit-player-actions">
+            <button class="cancel-button" type="button" (click)="closeModal()" [disabled]="savingPlayerName">Cancel</button>
+            <button class="build-button" type="button" (click)="savePlayerName()" [disabled]="savingPlayerName || editingPlayerName.trim().length < 2 || editingPlayerName.trim() === selectedPlayer.name">{{ savingPlayerName ? 'Saving…' : 'Save name' }}</button>
+          </div>
+        </section>
+      </div>
+    }
+
     @if (modal === 'rating' && selectedPlayer) {
       <div class="modal-backdrop" (click)="closeModal()">
         <section class="modal-card rating-modal" role="dialog" aria-modal="true" aria-labelledby="rating-title" (click)="$event.stopPropagation()">
@@ -503,15 +521,27 @@ interface MemberAccount {
             </button>
           </form>
           <div class="members-list">
-            <div class="members-list-heading">Current members <span>{{ memberAccounts.length }}</span></div>
+            <div class="members-list-heading">Player accounts <span>{{ memberAccounts.length }}</span></div>
             @for (member of memberAccounts; track member.id) {
               <div class="member-row">
                 <span class="profile-avatar member-avatar">{{ initials(member.username) }}</span>
                 <span class="member-info"><strong>{{ member.username }}</strong><small>{{ playerName(member.playerId) }}</small></span>
-                <button class="remove-member-button" [attr.aria-label]="'Remove account ' + member.username" (click)="removeMember(member)">Remove</button>
+                <span class="member-role" [class.member-role-admin]="member.role === 'admin'">{{ member.role === 'admin' ? 'Admin' : 'Member' }}</span>
+                @if (member.id !== sessionUser.id) {
+                  <button
+                    class="role-toggle-button"
+                    [class.role-demote-button]="member.role === 'admin'"
+                    [disabled]="updatingMemberId === member.id"
+                    [attr.aria-label]="(member.role === 'admin' ? 'Remove admin access from ' : 'Make ') + member.username + (member.role === 'admin' ? '' : ' an admin')"
+                    (click)="updateMemberRole(member)"
+                  >{{ updatingMemberId === member.id ? 'Saving…' : (member.role === 'admin' ? 'Demote' : 'Make admin') }}</button>
+                }
+                @if (member.role === 'member') {
+                  <button class="remove-member-button" [attr.aria-label]="'Remove account ' + member.username" (click)="removeMember(member)">Remove</button>
+                }
               </div>
             } @empty {
-              <p class="no-members">No member accounts yet.</p>
+              <p class="no-members">No player accounts yet.</p>
             }
           </div>
         </section>
@@ -536,11 +566,15 @@ export class App implements OnInit {
 	selectedPlayerIds: string[] = [];
 	errorMessage = '';
 	userAdminError = '';
-	modal: 'player' | 'rating' | 'delete' | 'users' | null = null;
+	modal: 'player' | 'edit-player' | 'rating' | 'delete' | 'users' | null = null;
 	selectedPlayer: Player | null = null;
 	deletingPlayer = false;
 	creatingMember = false;
+	updatingMemberId: string | null = null;
 	newPlayerName = '';
+	editingPlayerName = '';
+	playerNameError = '';
+	savingPlayerName = false;
 	newUsername = '';
 	newMemberPlayerId = '';
 	generatedCredentials: { username: string; password: string } | null = null;
@@ -748,6 +782,23 @@ export class App implements OnInit {
 			await firstValueFrom(this.http.post<GameMatch>(`/api/matches/${this.activeMatch.id}/finish`, {}));
 			this.activeMatch = null;
 			this.matchNotice = 'Game finished and saved. Player goal totals have been updated.';
+		} catch (error) {
+			this.matchError = this.matchRequestError(error);
+		} finally {
+			this.matchSaving = false;
+			this.changeDetector.detectChanges();
+		}
+	}
+
+	async cancelMatch(): Promise<void> {
+		if (!this.activeMatch || this.matchSaving) return;
+		if (!confirm('Cancel this game? Its score and goals will be permanently discarded and will not appear in match history.')) return;
+		this.matchSaving = true;
+		this.matchError = '';
+		try {
+			await firstValueFrom(this.http.delete<void>(`/api/matches/${this.activeMatch.id}`));
+			this.activeMatch = null;
+			this.matchNotice = 'Game canceled. Its score and goals were discarded.';
 		} catch (error) {
 			this.matchError = this.matchRequestError(error);
 		} finally {
@@ -1044,6 +1095,14 @@ export class App implements OnInit {
 		this.modal = 'player';
 	}
 
+	openEditPlayer(player: Player): void {
+		if (!this.isAdmin) return;
+		this.selectedPlayer = player;
+		this.editingPlayerName = player.name;
+		this.playerNameError = '';
+		this.modal = 'edit-player';
+	}
+
 	async openRating(player: Player): Promise<void> {
 		if (this.isOwnPlayer(player)) return;
 		this.errorMessage = '';
@@ -1078,12 +1137,14 @@ export class App implements OnInit {
 	}
 
 	closeModal(): void {
-		if (this.deletingPlayer || this.creatingMember) return;
+		if (this.deletingPlayer || this.creatingMember || this.savingPlayerName) return;
 		this.ratingRequestId += 1;
 		this.ratingLoading = false;
 		this.ratingLoadError = '';
 		this.generatedCredentials = null;
 		this.userAdminError = '';
+		this.editingPlayerName = '';
+		this.playerNameError = '';
 		this.modal = null;
 		this.selectedPlayer = null;
 		this.errorMessage = '';
@@ -1127,6 +1188,41 @@ export class App implements OnInit {
 			this.changeDetector.detectChanges();
 		} catch (error) {
 			this.showApiError(error);
+			this.changeDetector.detectChanges();
+		}
+	}
+
+	async savePlayerName(): Promise<void> {
+		const player = this.selectedPlayer;
+		const name = this.editingPlayerName.trim();
+		if (!player || !this.isAdmin || this.savingPlayerName || name.length < 2 || name === player.name) return;
+
+		this.savingPlayerName = true;
+		this.playerNameError = '';
+		try {
+			const updated = await firstValueFrom(
+				this.http.patch<Player>(`/api/players/${player.id}`, { name }),
+			);
+			this.players = this.players
+				.map((candidate) => candidate.id === updated.id ? updated : candidate)
+				.sort((a, b) => a.name.localeCompare(b.name));
+			this.teams = [];
+			this.swapPlayerId = null;
+			this.modal = null;
+			this.selectedPlayer = null;
+			this.editingPlayerName = '';
+		} catch (error) {
+			if (error instanceof HttpErrorResponse && error.status === 401) {
+				this.showApiError(error);
+			} else if (error instanceof HttpErrorResponse && error.status === 404) {
+				this.playerNameError = 'This player no longer exists. Refresh the roster and try again.';
+			} else if (error instanceof HttpErrorResponse && error.status === 400) {
+				this.playerNameError = 'Enter a name between 2 and 60 characters.';
+			} else {
+				this.playerNameError = 'Could not update the name. Check your connection and try again.';
+			}
+		} finally {
+			this.savingPlayerName = false;
 			this.changeDetector.detectChanges();
 		}
 	}
@@ -1255,6 +1351,34 @@ export class App implements OnInit {
 		} catch (error) {
 			this.userAdminError = 'Could not remove this member account.';
 			this.showApiError(error);
+			this.changeDetector.detectChanges();
+		}
+	}
+
+	async updateMemberRole(member: MemberAccount): Promise<void> {
+		if (!this.isAdmin || this.updatingMemberId) return;
+		const role = member.role === 'admin' ? 'member' : 'admin';
+		const confirmation = role === 'admin'
+			? `Make ${member.username} a league admin? They will have access to league administration.`
+			: `Remove league admin access from ${member.username}? They will still be able to sign in as a member.`;
+		if (!confirm(confirmation)) return;
+
+		this.updatingMemberId = member.id;
+		this.userAdminError = '';
+		try {
+			const updated = await firstValueFrom(
+				this.http.put<MemberAccount>(`/api/users/${member.id}/role`, { role }),
+			);
+			this.memberAccounts = this.memberAccounts
+				.map((account) => account.id === updated.id ? updated : account)
+				.sort((a, b) => a.username.localeCompare(b.username));
+		} catch (error) {
+			this.userAdminError = error instanceof HttpErrorResponse && error.status === 409
+				? 'The account changed or this is the last administrator. Refresh and try again.'
+				: 'Could not update this account’s role.';
+			this.showApiError(error);
+		} finally {
+			this.updatingMemberId = null;
 			this.changeDetector.detectChanges();
 		}
 	}

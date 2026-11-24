@@ -1,4 +1,5 @@
 import {
+	BadRequestException,
 	ConflictException,
 	Injectable,
 	NotFoundException,
@@ -119,10 +120,46 @@ export class AuthService implements OnModuleInit {
 
 	async findMembers(): Promise<UserSummary[]> {
 		const users = await this.userModel
-			.find({ role: UserRole.MEMBER })
+			.find({ playerId: { $exists: true } })
 			.sort({ username: 1 })
 			.exec();
 		return users.map((user) => this.toUserSummary(user));
+	}
+
+	async updateMemberRole(
+		id: string,
+		role: UserRole,
+		actor: AuthenticatedUser,
+	): Promise<UserSummary> {
+		const target = await this.userModel.findById(id).exec();
+		if (!target?.playerId) {
+			throw new NotFoundException('Player account not found.');
+		}
+		if (id === actor.sub && role !== UserRole.ADMIN) {
+			throw new BadRequestException('You cannot remove your own administrator access.');
+		}
+		if (target.role === role) return this.toUserSummary(target);
+
+		if (target.role === UserRole.ADMIN && role === UserRole.MEMBER) {
+			const adminCount = await this.userModel
+				.countDocuments({ role: UserRole.ADMIN })
+				.exec();
+			if (adminCount <= 1) {
+				throw new ConflictException('At least one administrator must remain.');
+			}
+		}
+
+		const updated = await this.userModel
+			.findOneAndUpdate(
+				{ _id: id, role: target.role, playerId: { $exists: true } },
+				{ $set: { role } },
+				{ new: true },
+			)
+			.exec();
+		if (!updated) {
+			throw new ConflictException('This account changed. Refresh and try again.');
+		}
+		return this.toUserSummary(updated);
 	}
 
 	async removeMember(id: string): Promise<void> {
@@ -135,7 +172,7 @@ export class AuthService implements OnModuleInit {
 
 	async hasMemberForPlayer(playerId: string): Promise<boolean> {
 		return Boolean(
-			await this.userModel.exists({ playerId, role: UserRole.MEMBER }),
+			await this.userModel.exists({ playerId }),
 		);
 	}
 

@@ -3,12 +3,14 @@ import {
   Controller,
   Delete,
   Get,
+  Patch,
   Param,
   Post,
   UseGuards,
 } from '@nestjs/common';
 import { CreatePlayerDto } from './dto/create-player.dto';
 import { CreateRatingDto } from './dto/create-rating.dto';
+import { UpdatePlayerDto } from './dto/update-player.dto';
 import { PlayersService } from './players.service';
 import { AuthGuard } from '../auth/auth.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
@@ -31,6 +33,12 @@ export class PlayersController {
   @Roles(UserRole.ADMIN)
   create(@Body() dto: CreatePlayerDto) {
     return this.playersService.create(dto);
+  }
+
+  @Patch(':id')
+  @Roles(UserRole.ADMIN)
+  updateName(@Param('id') id: string, @Body() dto: UpdatePlayerDto) {
+    return this.playersService.updateName(id, dto.name);
   }
 
   @Get(':id/my-rating')

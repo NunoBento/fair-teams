@@ -12,6 +12,9 @@ describe('AuthService', () => {
       exists: jest.fn(),
       create: jest.fn(),
       findOne: jest.fn(),
+      findById: jest.fn(),
+      findOneAndUpdate: jest.fn(),
+      countDocuments: jest.fn(),
     } as unknown as Model<User>;
     const playerModel = {
       exists: jest.fn(),
@@ -82,6 +85,114 @@ describe('AuthService', () => {
     ).rejects.toThrow('That username is already in use.');
     expect(playerModel.exists).not.toHaveBeenCalled();
     expect(userModel.create).not.toHaveBeenCalled();
+  });
+
+  it('promotes a linked player account to administrator', async () => {
+    const { service, userModel } = createService();
+    const target = {
+      _id: { toString: () => 'user-id' },
+      username: 'jamie',
+      role: UserRole.MEMBER,
+      playerId: { toString: () => 'player-id' },
+    };
+    const updated = { ...target, role: UserRole.ADMIN };
+    (userModel.findById as jest.Mock).mockReturnValue({
+      exec: jest.fn().mockResolvedValue(target),
+    });
+    (userModel.findOneAndUpdate as jest.Mock).mockReturnValue({
+      exec: jest.fn().mockResolvedValue(updated),
+    });
+
+    await expect(
+      service.updateMemberRole('user-id', UserRole.ADMIN, {
+        sub: 'other-admin',
+        username: 'admin',
+        role: UserRole.ADMIN,
+      }),
+    ).resolves.toEqual({
+      id: 'user-id',
+      username: 'jamie',
+      role: UserRole.ADMIN,
+      playerId: 'player-id',
+    });
+    expect(userModel.findOneAndUpdate).toHaveBeenCalledWith(
+      { _id: 'user-id', role: UserRole.MEMBER, playerId: { $exists: true } },
+      { $set: { role: UserRole.ADMIN } },
+      { new: true },
+    );
+  });
+
+  it('demotes an administrator when another administrator remains', async () => {
+    const { service, userModel } = createService();
+    const target = {
+      _id: { toString: () => 'user-id' },
+      username: 'jamie',
+      role: UserRole.ADMIN,
+      playerId: { toString: () => 'player-id' },
+    };
+    const updated = { ...target, role: UserRole.MEMBER };
+    (userModel.findById as jest.Mock).mockReturnValue({
+      exec: jest.fn().mockResolvedValue(target),
+    });
+    (userModel.countDocuments as jest.Mock).mockReturnValue({
+      exec: jest.fn().mockResolvedValue(2),
+    });
+    (userModel.findOneAndUpdate as jest.Mock).mockReturnValue({
+      exec: jest.fn().mockResolvedValue(updated),
+    });
+
+    await expect(
+      service.updateMemberRole('user-id', UserRole.MEMBER, {
+        sub: 'other-admin',
+        username: 'admin',
+        role: UserRole.ADMIN,
+      }),
+    ).resolves.toMatchObject({ role: UserRole.MEMBER });
+  });
+
+  it('does not allow demoting the last administrator', async () => {
+    const { service, userModel } = createService();
+    (userModel.findById as jest.Mock).mockReturnValue({
+      exec: jest.fn().mockResolvedValue({
+        _id: { toString: () => 'user-id' },
+        username: 'jamie',
+        role: UserRole.ADMIN,
+        playerId: { toString: () => 'player-id' },
+      }),
+    });
+    (userModel.countDocuments as jest.Mock).mockReturnValue({
+      exec: jest.fn().mockResolvedValue(1),
+    });
+
+    await expect(
+      service.updateMemberRole('user-id', UserRole.MEMBER, {
+        sub: 'other-admin',
+        username: 'admin',
+        role: UserRole.ADMIN,
+      }),
+    ).rejects.toThrow('At least one administrator must remain.');
+    expect(userModel.findOneAndUpdate).not.toHaveBeenCalled();
+  });
+
+  it('does not allow administrators to demote themselves', async () => {
+    const { service, userModel } = createService();
+    (userModel.findById as jest.Mock).mockReturnValue({
+      exec: jest.fn().mockResolvedValue({
+        _id: { toString: () => 'admin-id' },
+        username: 'admin',
+        role: UserRole.ADMIN,
+        playerId: { toString: () => 'player-id' },
+      }),
+    });
+
+    await expect(
+      service.updateMemberRole('admin-id', UserRole.MEMBER, {
+        sub: 'admin-id',
+        username: 'admin',
+        role: UserRole.ADMIN,
+      }),
+    ).rejects.toThrow('You cannot remove your own administrator access.');
+    expect(userModel.findOneAndUpdate).not.toHaveBeenCalled();
   });
 
   it('creates the initial administrator only when one does not already exist', async () => {

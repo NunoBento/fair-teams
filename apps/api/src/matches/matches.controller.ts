@@ -60,4 +60,9 @@ export class MatchesController {
   finish(@Param('id') id: string) {
     return this.matchesService.finish(id);
   }
+
+  @Delete(':id')
+  cancel(@Param('id') id: string) {
+    return this.matchesService.cancel(id);
+  }
 }

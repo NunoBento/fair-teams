@@ -34,6 +34,14 @@ export class PlayersService {
 		return this.toRatedPlayer(player);
 	}
 
+	async updateName(id: string, name: string): Promise<RatedPlayer> {
+		const player = await this.playerModel.findById(id).exec();
+		if (!player) throw new NotFoundException('Player not found.');
+		player.name = name.trim();
+		await player.save();
+		return this.toRatedPlayer(player);
+	}
+
 	async addRating(
 		id: string,
 		dto: CreateRatingDto,

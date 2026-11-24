@@ -12,5 +12,8 @@
     "start:web": "npm run start --workspace web",
     "build": "npm run build --workspace api && npm run build --workspace web",
     "test:api": "npm run test --workspace api -- --runInBand"
+  },
+  "devDependencies": {
+    "@types/jest": "^30.0.0"
   }
 }

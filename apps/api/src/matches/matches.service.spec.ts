@@ -15,6 +15,7 @@ describe('MatchesService', () => {
     findById: jest.Mock;
     updateOne: jest.Mock;
     findOneAndUpdate: jest.Mock;
+    findOneAndDelete: jest.Mock;
   };
   let playersService: { findByIds: jest.Mock; findAll: jest.Mock };
 
@@ -41,6 +42,7 @@ describe('MatchesService', () => {
       findById: jest.fn(),
       updateOne: jest.fn(),
       findOneAndUpdate: jest.fn(),
+      findOneAndDelete: jest.fn(),
     };
     playersService = { findByIds: jest.fn(), findAll: jest.fn() };
     const module: TestingModule = await Test.createTestingModule({
@@ -169,6 +171,33 @@ describe('MatchesService', () => {
     );
     expect(result.status).toBe('completed');
     expect(result.finishedAt).toEqual(completed.finishedAt);
+  });
+
+  it('deletes a live game when it is canceled', async () => {
+    matchModel.findOneAndDelete.mockReturnValue({
+      exec: jest.fn().mockResolvedValue(liveMatch()),
+    });
+
+    await expect(service.cancel('match-id')).resolves.toBeUndefined();
+
+    expect(matchModel.findOneAndDelete).toHaveBeenCalledWith({
+      _id: 'match-id',
+      status: 'live',
+    });
+    expect(matchModel.findById).not.toHaveBeenCalled();
+  });
+
+  it('does not cancel a completed game', async () => {
+    matchModel.findOneAndDelete.mockReturnValue({
+      exec: jest.fn().mockResolvedValue(null),
+    });
+    matchModel.findById.mockReturnValue({
+      exec: jest.fn().mockResolvedValue({ ...liveMatch(), status: 'completed' }),
+    });
+
+    await expect(service.cancel('match-id')).rejects.toThrow(
+      'Only a live game can be canceled.',
+    );
   });
 
   it('includes zero-goal roster players in all-time goal statistics', async () => {
