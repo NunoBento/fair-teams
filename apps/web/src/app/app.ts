@@ -1,6 +1,6 @@
 import { DecimalPipe } from '@angular/common';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
-import { ChangeDetectorRef, Component, OnInit, inject } from '@angular/core';
+import { ChangeDetectorRef, Component, OnDestroy, OnInit, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { catchError, firstValueFrom, of } from 'rxjs';
 
@@ -214,8 +214,23 @@ interface MemberAccount {
               <div>
                 <div class="section-kicker">THURSDAY LEAGUE · LIVE SCOREKEEPER</div>
               </div>
-              @if (activeMatch) { <span class="match-live-badge"><i></i> LIVE</span> }
+              @if (activeMatch) {
+                <div class="match-page-status">
+                  <span class="match-live-badge"><i></i> LIVE</span>
+                  @if (screenWakeLockActive) {
+                    <span class="screen-awake-badge" role="status">Screen awake</span>
+                  }
+                </div>
+              }
             </header>
+            @if (activeMatch && screenWakeLockUnsupported) {
+              <p class="screen-wake-notice" role="status">This browser can’t keep the screen awake. Keep the match open and adjust your device’s display timeout.</p>
+            } @else if (activeMatch && screenWakeLockError) {
+              <p class="screen-wake-notice" role="status">
+                Couldn’t keep the screen awake.
+                <button class="screen-wake-retry" type="button" (click)="requestScreenWakeLock()">Try again</button>
+              </p>
+            }
             @if (matchNotice) { <div class="match-notice" role="status">{{ matchNotice }}</div> }
             @if (matchError) { <div class="error-banner" role="alert">{{ matchError }}</div> }
             @if (matchLoading) {
@@ -550,7 +565,7 @@ interface MemberAccount {
     }
   `,
 })
-export class App implements OnInit {
+export class App implements OnInit, OnDestroy {
 	private readonly http = inject(HttpClient);
 	private readonly changeDetector = inject(ChangeDetectorRef);
 	readonly skills = SKILLS;
@@ -598,6 +613,11 @@ export class App implements OnInit {
 	statsError = '';
 	matchNotice = '';
 	private matchRefreshTimer: ReturnType<typeof setInterval> | null = null;
+	private screenWakeLock: WakeLockSentinel | null = null;
+	private screenWakeLockRequest: Promise<void> | null = null;
+	screenWakeLockActive = false;
+	screenWakeLockUnsupported = false;
+	screenWakeLockError = false;
 
 	radarAxisPoint(index: number): { x: number; y: number } {
 		const angle = (index * 60 - 90) * Math.PI / 180;
@@ -645,6 +665,7 @@ export class App implements OnInit {
 	showDashboard(): void {
 		this.currentPage = 'dashboard';
 		this.clearMatchRefresh();
+		void this.releaseScreenWakeLock();
 	}
 
 	goToPlayers(): void {
@@ -655,6 +676,7 @@ export class App implements OnInit {
 	showMatchPage(): void {
 		this.currentPage = 'match';
 		this.matchNotice = '';
+		this.screenWakeLockError = false;
 		this.clearMatchRefresh();
 		void this.loadMatchPage();
 		this.matchRefreshTimer = setInterval(() => {
@@ -665,8 +687,82 @@ export class App implements OnInit {
 	showStatsPage(): void {
 		this.currentPage = 'stats';
 		this.clearMatchRefresh();
+		void this.releaseScreenWakeLock();
 		void this.loadStatsPage();
 	}
+
+	private shouldKeepScreenAwake(): boolean {
+		return this.currentPage === 'match' &&
+			this.activeMatch !== null &&
+			document.visibilityState === 'visible';
+	}
+
+	private async syncScreenWakeLock(force = false): Promise<void> {
+		if (!this.shouldKeepScreenAwake()) {
+			await this.releaseScreenWakeLock();
+			return;
+		}
+		if (!('wakeLock' in navigator)) {
+			this.screenWakeLockUnsupported = true;
+			this.changeDetector.detectChanges();
+			return;
+		}
+		if (this.screenWakeLock && !this.screenWakeLock.released) return;
+		if (this.screenWakeLockRequest) return;
+		if (this.screenWakeLockError && !force) return;
+
+		this.screenWakeLockUnsupported = false;
+		this.screenWakeLockError = false;
+		this.screenWakeLockRequest = navigator.wakeLock.request('screen')
+			.then(async (wakeLock) => {
+				if (!this.shouldKeepScreenAwake()) {
+					await wakeLock.release();
+					return;
+				}
+				this.screenWakeLock = wakeLock;
+				this.screenWakeLockActive = true;
+				wakeLock.addEventListener('release', () => {
+					if (this.screenWakeLock !== wakeLock) return;
+					this.screenWakeLock = null;
+					this.screenWakeLockActive = false;
+					this.screenWakeLockError = this.shouldKeepScreenAwake();
+					this.changeDetector.detectChanges();
+				}, { once: true });
+				this.changeDetector.detectChanges();
+			})
+			.catch((error: unknown) => {
+				if (this.shouldKeepScreenAwake()) {
+					this.screenWakeLockError = true;
+					console.error('Unable to keep the screen awake during the live match.', error);
+					this.changeDetector.detectChanges();
+				}
+			})
+			.finally(() => {
+				this.screenWakeLockRequest = null;
+			});
+		await this.screenWakeLockRequest;
+	}
+
+	private async releaseScreenWakeLock(): Promise<void> {
+		const wakeLock = this.screenWakeLock;
+		this.screenWakeLock = null;
+		this.screenWakeLockActive = false;
+		if (wakeLock && !wakeLock.released) {
+			try {
+				await wakeLock.release();
+			} catch (error) {
+				console.error('Unable to release the screen wake lock.', error);
+			}
+		}
+	}
+
+	requestScreenWakeLock(): void {
+		void this.syncScreenWakeLock(true);
+	}
+
+	private handleVisibilityChange = (): void => {
+		void this.syncScreenWakeLock(document.visibilityState === 'visible');
+	};
 
 	private clearMatchRefresh(): void {
 		if (this.matchRefreshTimer !== null) {
@@ -680,6 +776,7 @@ export class App implements OnInit {
 		this.matchError = '';
 		try {
 			this.activeMatch = await firstValueFrom(this.http.get<GameMatch | null>('/api/matches/active'));
+			void this.syncScreenWakeLock();
 		} catch (error) {
 			this.matchError = this.matchRequestError(error);
 		} finally {
@@ -706,6 +803,7 @@ export class App implements OnInit {
 		try {
 			const active = await firstValueFrom(this.http.get<GameMatch | null>('/api/matches/active'));
 			this.activeMatch = active;
+			void this.syncScreenWakeLock();
 			this.changeDetector.detectChanges();
 		} catch (error) {
 			this.matchError = this.matchRequestError(error);
@@ -732,6 +830,7 @@ export class App implements OnInit {
 				whites: this.teams[0].players.map((player) => player.id),
 				blacks: this.teams[1].players.map((player) => player.id),
 			}));
+			void this.syncScreenWakeLock();
 		} catch (error) {
 			this.matchError = this.matchRequestError(error);
 		} finally {
@@ -781,6 +880,7 @@ export class App implements OnInit {
 		try {
 			await firstValueFrom(this.http.post<GameMatch>(`/api/matches/${this.activeMatch.id}/finish`, {}));
 			this.activeMatch = null;
+			void this.releaseScreenWakeLock();
 			this.matchNotice = 'Game finished and saved. Player goal totals have been updated.';
 		} catch (error) {
 			this.matchError = this.matchRequestError(error);
@@ -798,6 +898,7 @@ export class App implements OnInit {
 		try {
 			await firstValueFrom(this.http.delete<void>(`/api/matches/${this.activeMatch.id}`));
 			this.activeMatch = null;
+			void this.releaseScreenWakeLock();
 			this.matchNotice = 'Game canceled. Its score and goals were discarded.';
 		} catch (error) {
 			this.matchError = this.matchRequestError(error);
@@ -852,6 +953,7 @@ export class App implements OnInit {
 	}
 
 	ngOnInit(): void {
+		document.addEventListener('visibilitychange', this.handleVisibilityChange);
 		this.http.get<SessionUser>('/api/auth/me').pipe(
 			catchError(() => of(null)),
 		).subscribe((user) => {
@@ -860,6 +962,12 @@ export class App implements OnInit {
 			this.changeDetector.detectChanges();
 			void this.loadDashboard();
 		});
+	}
+
+	ngOnDestroy(): void {
+		document.removeEventListener('visibilitychange', this.handleVisibilityChange);
+		this.clearMatchRefresh();
+		void this.releaseScreenWakeLock();
 	}
 
 	get isAdmin(): boolean {
@@ -1060,6 +1168,7 @@ export class App implements OnInit {
 		try {
 			await firstValueFrom(this.http.post<void>('/api/auth/logout', {}));
 			this.clearMatchRefresh();
+			void this.releaseScreenWakeLock();
 			this.sessionUser = null;
 			this.players = [];
 			this.memberAccounts = [];
@@ -1390,6 +1499,7 @@ export class App implements OnInit {
 	private showApiError(error: unknown): void {
 		if (error instanceof HttpErrorResponse && error.status === 401) {
 			this.clearMatchRefresh();
+			void this.releaseScreenWakeLock();
 			this.sessionUser = null;
 			this.players = [];
 			this.memberAccounts = [];
